@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 bgrs_per_fgr = 3
 
-
+# TODO: Move all these composition methods to a separate file. Separate generic composition from experiment
 # Foreground is an img sequence
 # NOT WORKING RN
 def fgr_img_seq():

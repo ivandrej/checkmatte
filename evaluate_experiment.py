@@ -38,6 +38,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
+import pandas as pd
 import pims
 import torch
 import xlsxwriter
@@ -68,7 +69,8 @@ class Evaluator:
         self.args = args
         self.init_metrics()
         self.evaluate()
-        self.write_excel()
+        # self.write_excel()
+        self.write_csv()
 
     def init_metrics(self):
         self.mad = MetricMAD()
@@ -91,31 +93,23 @@ class Evaluator:
 
         self.results = [(dataset, clip, future.result()) for dataset, clip, future in tasks]
 
-    def write_excel(self):
-        workbook = xlsxwriter.Workbook(os.path.join(self.args.pred_dir, f'{os.path.basename(self.args.pred_dir)}.xlsx'))
-        summarysheet = workbook.add_worksheet('summary')
-        metricsheets = [workbook.add_worksheet(metric) for metric in self.results[0][2].keys()]
-
-        for i, metric in enumerate(self.results[0][2].keys()):
-            summarysheet.write(i, 0, metric)
-            summarysheet.write(i, 1, f'={metric}!B2')
-
+    """
+        Output table has the format: clipname, mad, mse, ....
+        output = {
+         clip1: [mean mad over frame, mean mse over frames]
+        } 
+    """
+    def write_csv(self):
+        # Each row is one clip
+        output_dict = {}
         for row, (dataset, clip, metrics) in enumerate(self.results):
-            for metricsheet, metric in zip(metricsheets, metrics.values()):
-                # Write the header
-                if row == 0:
-                    metricsheet.write(1, 0, 'Average')
-                    metricsheet.write(1, 1, f'=AVERAGE(C2:ZZ2)')
-                    for col in range(len(metric)):
-                        metricsheet.write(0, col + 2, col)
-                        colname = xlsxwriter.utility.xl_col_to_name(col + 2)
-                        metricsheet.write(1, col + 2, f'=AVERAGE({colname}3:{colname}9999)')
+            print(metrics)
+            metric_mean_over_frames = list(map(lambda metric_values: np.mean(metric_values), metrics.values()))
+            output_dict[clip] = metric_mean_over_frames
 
-                metricsheet.write(row + 2, 0, dataset)
-                metricsheet.write(row + 2, 1, clip)
-                metricsheet.write_row(row + 2, 2, metric)
+        df = pd.DataFrame.from_dict(output_dict, orient="index", columns=self.results[0][2].keys())
+        df.to_csv(os.path.join(self.args.pred_dir, "metrics.csv"), index_label="clipname")
 
-        workbook.close()
 
     def evaluate_worker(self, dataset, clip, position):
         print("Clip: ", clip)
