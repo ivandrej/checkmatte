@@ -87,9 +87,10 @@ class Evaluator:
             dataset = "dataset"
             print("Fgr paths: ", fgr_path_of_com)
             for clip in sorted(os.listdir(os.path.join(self.args.pred_dir))):
-                future = executor.submit(self.evaluate_worker, dataset, clip, position)
-                tasks.append((dataset, clip, future))
-                position += 1
+                if os.path.isdir(os.path.join(self.args.pred_dir, clip)):
+                    future = executor.submit(self.evaluate_worker, dataset, clip, position)
+                    tasks.append((dataset, clip, future))
+                    position += 1
 
         self.results = [(dataset, clip, future.result()) for dataset, clip, future in tasks]
 
@@ -99,6 +100,7 @@ class Evaluator:
          clip1: [mean mad over frame, mean mse over frames]
         } 
     """
+
     def write_csv(self):
         # Each row is one clip
         output_dict = {}
@@ -110,11 +112,11 @@ class Evaluator:
         df = pd.DataFrame.from_dict(output_dict, orient="index", columns=self.results[0][2].keys())
         df.to_csv(os.path.join(self.args.pred_dir, "metrics.csv"), index_label="clipname")
 
-
     def evaluate_worker(self, dataset, clip, position):
         print("Clip: ", clip)
         true_fgr_frames = pims.PyAVVideoReader(fgr_path_of_com[clip])
         true_pha_frames = pims.PyAVVideoReader(pha_path_of_com[clip])
+
         pred_fgr_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip, "fgr.mp4"))
         pred_pha_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip, "pha.mp4"))
 
