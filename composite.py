@@ -113,6 +113,8 @@ def fgr_vid_bgr_img(bgr, fgr_path, pha_path, out_dir):
 Composite multiple foregrounds to multiple backgrounds.
 Right now for each foreground we have 3 backgrounds 
 """
+
+
 def composite_multiple_bgr():
     for com_paths in clips:
         print(com_paths.bgr_path)
@@ -136,46 +138,30 @@ def clipname_from_path(path):
     return Path(path).stem
 
 
-# class BackgroundType(Enum):
-#     STATIC = 1
-#     SEMI_DYNAMIC = 2
-#     DYNAMIC = 3
-#
-#
-# @dataclass
-# class Background:
-#     bgr_path: str
-#     bgr_type: BackgroundType
-#
-#
-# @dataclass
-# class Foreground:
-#     fgr_path: str
-#     pha_path: str
-#     bgrs: List[Background]
+# TODO: Move this to a metadata file
+bgr_paths = {
+    "dynamic": [
+        "/home/andivanov/dev/data/dynamic_backgrounds_youtube/car_1.mp4",
+        "/home/andivanov/dev/data/dynamic_backgrounds_youtube/nature_1.1.mp4",
+        "/home/andivanov/dev/data/dynamic_backgrounds_youtube/nature_2.1.mp4",
+        "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
+        "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
+    ],
+    "semi_dynamic": [
+        "/data/DVM/bg/test/0180.mp4",
+        "/data/DVM/bg/test/0010.mp4",
+        "/data/DVM/bg/test/0010.mp4",
+        "/data/DVM/bg/test/0015.mp4",
+        "/data/DVM/bg/test/0043.mp4"
+    ],
+    "static": [
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/classroom_interior_318.br420-1.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
+    ]}
 
-# Triplets of very dynamic, medium dynamic and static
-bgr_paths = [
-    "/home/andivanov/dev/data/dynamic_backgrounds_youtube/car_1.mp4",
-    "/data/DVM/bg/test/0180.mp4",
-    "/home/andivanov/dev/data/BGM_Image_Backgrounds/classroom_interior_318.br420-1.jpg",
-
-    "/home/andivanov/dev/data/dynamic_backgrounds_youtube/nature_1.1.mp4",
-    "/data/DVM/bg/test/0010.mp4",
-    "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
-
-    "/home/andivanov/dev/data/dynamic_backgrounds_youtube/nature_2.1.mp4",
-    "/data/DVM/bg/test/0010.mp4",
-    "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
-
-    "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
-    "/data/DVM/bg/test/0015.mp4",
-    "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
-
-    "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS",
-    "/data/DVM/bg/test/0043.mp4",
-    "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
-]
 fgr_paths = [
     "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0004.mp4",
     "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0003.mp4",
@@ -191,32 +177,34 @@ pha_paths = [
     "/home/andivanov/dev/data/VideoMatte240K/test/pha/0000.mp4",
 ]
 
+bgr_triples = list(zip(bgr_paths["dynamic"], bgr_paths["semi_dynamic"], bgr_paths["static"]))
+assert (len(bgr_triples) == len(fgr_paths) == len(pha_paths))
+
 """
     Contains paths to fgr, pha and bgr we want to composite
 """
+
+
 class CompositedClipPaths:
-    def __init__(self, fgr_path, pha_path, bgr_path):
+    def __init__(self, fgr_path, pha_path, bgr_path, bgr_type):
         self.fgr_path = fgr_path
         self.pha_path = pha_path
         self.bgr_path = bgr_path
         self.clipname = com_clipname(pha_path, bgr_path)
+        self.bgr_type = bgr_type
 
-
-# Maps composition clip name to the corresponding foreground. \
-# Used in evaluation script to find pha and fgr ground truth
-fgr_path_of_com = {}
-pha_path_of_com = {}
-
-assert (len(bgr_paths) == bgrs_per_fgr * len(fgr_paths) == bgrs_per_fgr * len(pha_paths))
 
 # Match foregrounds with backgrounds. Produces a flat list of (fgr, pha, bgr)
 clips: List[CompositedClipPaths] = []
 for i, (fgr_path, pha_path) in enumerate(zip(fgr_paths, pha_paths)):
-    for bgr_path in bgr_paths[i * bgrs_per_fgr: (i + 1) * bgrs_per_fgr]:
-        com = CompositedClipPaths(fgr_path, pha_path, bgr_path)
-        fgr_path_of_com[com.clipname] = fgr_path
-        pha_path_of_com[com.clipname] = pha_path
-        clips.append(com)
+    dynamic_bgr, semi_dynamic_bgr, static_bgr = bgr_triples[i]
+    dynamic_com = CompositedClipPaths(fgr_path, pha_path, dynamic_bgr, "dynamic")
+    semi_dynamic_com = CompositedClipPaths(fgr_path, pha_path, semi_dynamic_bgr, "semi_dynamic")
+    static_com = CompositedClipPaths(fgr_path, pha_path, static_bgr, "static")
+
+    clips.append(dynamic_com)
+    clips.append(semi_dynamic_com)
+    clips.append(static_com)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
