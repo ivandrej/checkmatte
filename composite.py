@@ -1,132 +1,38 @@
 """
-python generate_videomatte_with_background_video.py \
-    --videomatte-dir ../matting-data/VideoMatte240K_JPEG_HD/test \
-    --background-dir ../matting-data/BackgroundVideos_mp4/test \
-    --resize 512 288 \
-    --out-dir ../matting-data/evaluation/vidematte_motion_sd/
+python python composite.py
+    --out-dir ~/dev/data/composited_evaluation/experiment3/input
+    --resize 512 288
+    --num-frames 600
 """
 
 import argparse
 import os
-from dataclasses import dataclass
-from enum import Enum
 from typing import List
 
-import pims
 import numpy as np
-import random
+import pims
 from PIL import Image
 from tqdm import tqdm
 
+from composition_utils import fgr_vid_bgr_vid, fgr_vid_bgr_img
+
 bgrs_per_fgr = 3
 
-# TODO: Move all these composition methods to a separate file. Separate generic composition from experiment
-# Foreground is an img sequence
-# NOT WORKING RN
-def fgr_img_seq():
-    # This dir needs to contain fgr and pha
-    fgr_dir = "/home/andivanov/dev/data/RVM_videomatte_evaluation_1920x1080/videomatte_motion/0015"
-    framenames = sorted(os.listdir(os.path.join(fgr_dir, "fgr")))
-
-    num_frames = min(args.num_frames, len(framenames))
-    for t in tqdm(range(num_frames)):
-        with Image.open(os.path.join(fgr_dir, 'fgr', framenames[base_t + t])) as fgr, \
-                Image.open(os.path.join(fgr_dir, 'pha', framenames[base_t + t])) as pha:
-            fgr = fgr.convert('RGB')
-            pha = pha.convert('L')
-
-            if args.resize is not None:
-                fgr = fgr.resize(args.resize, Image.BILINEAR)
-                pha = pha.resize(args.resize, Image.BILINEAR)
-
-        bgr = Image.fromarray(bgrs[t])
-        bgr = bgr.resize(fgr.size, Image.BILINEAR)
-
-        pha = np.asarray(pha).astype(float)[:, :, None] / 255
-        com = Image.fromarray(np.uint8(np.asarray(fgr) * pha + np.asarray(bgr) * (1 - pha)))
-        com.save(os.path.join(out_dir, 'com', str(t).zfill(4) + '.png'))
-
-
 """
-Inputs:
- - bgr_frames: n frames
- - fgr: m frames
- - pha: m frames
- - num_frames: how many frames to consider
+Composite a list of foreground, background pairs
 """
-
-
-def fgr_vid_bgr_vid(bgr_frames, fgr_path, pha_path, out_dir):
-    fgr_frames = pims.PyAVVideoReader(fgr_path)
-    pha_frames = pims.PyAVVideoReader(pha_path)
-    assert (len(fgr_frames) == len(pha_frames))
-
-    num_frames = min(args.num_frames, min(len(fgr_frames), len(bgr_frames)))
-    for t in tqdm(range(num_frames)):
-        fgr = Image.fromarray(fgr_frames[t])
-        pha = Image.fromarray(pha_frames[t])
-        pha = pha.convert('L')
-
-        if args.resize is not None:
-            fgr = fgr.resize(args.resize, Image.BILINEAR)
-            pha = pha.resize(args.resize, Image.BILINEAR)
-
-        bgr = Image.fromarray(bgr_frames[t])
-        bgr = bgr.resize(fgr.size, Image.BILINEAR)
-
-        pha = np.asarray(pha).astype(float)[:, :, None] / 255
-        com = Image.fromarray(np.uint8(np.asarray(fgr) * pha + np.asarray(bgr) * (1 - pha)))
-        com.save(os.path.join(out_dir, str(t).zfill(4) + '.png'))
-
-
-"""
-Inputs:
- - bgr: 1 frame (image)
- - fgr: m frames
- - pha: m frames
- - num_frames: how many frames to consider
-"""
-
-
-def fgr_vid_bgr_img(bgr, fgr_path, pha_path, out_dir):
-    fgr_frames = pims.PyAVVideoReader(fgr_path)
-    pha_frames = pims.PyAVVideoReader(pha_path)
-    assert (len(fgr_frames) == len(pha_frames))
-
-    num_frames = min(args.num_frames, len(fgr_frames))
-    for t in tqdm(range(num_frames)):
-        fgr = Image.fromarray(fgr_frames[t])
-        pha = Image.fromarray(pha_frames[t])
-        pha = pha.convert('L')
-
-        if args.resize is not None:
-            fgr = fgr.resize(args.resize, Image.BILINEAR)
-            pha = pha.resize(args.resize, Image.BILINEAR)
-        bgr = bgr.resize(fgr.size, Image.BILINEAR)
-
-        pha = np.asarray(pha).astype(float)[:, :, None] / 255
-        com = Image.fromarray(np.uint8(np.asarray(fgr) * pha + np.asarray(bgr) * (1 - pha)))
-        com.save(os.path.join(out_dir, str(t).zfill(4) + '.png'))
-
-
-"""
-Composite multiple foregrounds to multiple backgrounds.
-Right now for each foreground we have 3 backgrounds 
-"""
-
-
-def composite_multiple_bgr():
+def composite_multiple_bgr(clips):
     for com_paths in clips:
         print(com_paths.bgr_path)
         out_dir = os.path.join(args.out_dir, com_paths.clipname)
         os.makedirs(out_dir)
         if com_paths.bgr_path.endswith(".mp4") or com_paths.bgr_path.endswith(".MTS"):  # video background
             bgr_frames = pims.PyAVVideoReader(com_paths.bgr_path)
-            fgr_vid_bgr_vid(bgr_frames, com_paths.fgr_path, com_paths.pha_path, out_dir)
+            fgr_vid_bgr_vid(bgr_frames, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
         else:  # image (static) background
             with Image.open(com_paths.bgr_path) as bgr:
                 bgr = bgr.convert('RGB')
-                fgr_vid_bgr_img(bgr, com_paths.fgr_path, com_paths.pha_path, out_dir)
+                fgr_vid_bgr_img(bgr, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
 
 
 def com_clipname(pha_path, bgr_path):
@@ -141,40 +47,40 @@ def clipname_from_path(path):
 # TODO: Move this to a metadata file
 bgr_paths = {
     "dynamic": [
-        "/home/andivanov/dev/data/dynamic_backgrounds_youtube/car_1.mp4",
-        "/home/andivanov/dev/data/dynamic_backgrounds_youtube/nature_1.1.mp4",
-        "/home/andivanov/dev/data/dynamic_backgrounds_youtube/nature_2.1.mp4",
-        "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
-        "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
+        "/home/andivanov/dev/data/dynamic_backgrounds_captured/construction_site_1.mp4",
+        # "/home/andivanov/dev/data/dynamic_backgrounds_captured/tram_station_walking_2.MOV.MOV",
+        # "/home/andivanov/dev/data/dynamic_backgrounds_captured/zurich_oldtown_store_bgr.MOV",
+        # "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
+        # "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
     ],
     "semi_dynamic": [
-        "/data/DVM/bg/test/0180.mp4",
-        "/data/DVM/bg/test/0010.mp4",
-        "/data/DVM/bg/test/0010.mp4",
-        "/data/DVM/bg/test/0015.mp4",
-        "/data/DVM/bg/test/0043.mp4"
+        "/media/andivanov/DATA/DVM/bg/test/0073.mp4",
+        # "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
+        # "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
+        # "/media/andivanov/DATA/DVM/bg/test/0015.mp4",
+        # "/media/andivanov/DATA/DVM/bg/test/0043.mp4"
     ],
     "static": [
         "/home/andivanov/dev/data/BGM_Image_Backgrounds/classroom_interior_318.br420-1.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
+        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
+        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
+        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
+        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
     ]}
 
 fgr_paths = [
-    "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0004.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0003.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0002.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0001.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/fgr/0000.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0004.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0003.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0002.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0001.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0000.mp4",
 ]
 pha_paths = [
-    "/home/andivanov/dev/data/VideoMatte240K/test/pha/0004.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/pha/0003.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/pha/0002.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/pha/0001.mp4",
-    "/home/andivanov/dev/data/VideoMatte240K/test/pha/0000.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/pha/0004.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0003.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0002.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0001.mp4",
+    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0000.mp4",
 ]
 
 bgr_triples = list(zip(bgr_paths["dynamic"], bgr_paths["semi_dynamic"], bgr_paths["static"]))
@@ -195,21 +101,20 @@ class CompositedClipPaths:
 
 
 # Match foregrounds with backgrounds. Produces a flat list of (fgr, pha, bgr)
+# Composite each fgr onto each bgr
 clips: List[CompositedClipPaths] = []
 for i, (fgr_path, pha_path) in enumerate(zip(fgr_paths, pha_paths)):
-    dynamic_bgr, semi_dynamic_bgr, static_bgr = bgr_triples[i]
-    dynamic_com = CompositedClipPaths(fgr_path, pha_path, dynamic_bgr, "dynamic")
-    semi_dynamic_com = CompositedClipPaths(fgr_path, pha_path, semi_dynamic_bgr, "semi_dynamic")
-    static_com = CompositedClipPaths(fgr_path, pha_path, static_bgr, "static")
+    for dynamic_bgr, semi_dynamic_bgr, static_bgr in bgr_triples:
+        dynamic_com = CompositedClipPaths(fgr_path, pha_path, dynamic_bgr, "dynamic")
+        semi_dynamic_com = CompositedClipPaths(fgr_path, pha_path, semi_dynamic_bgr, "semi_dynamic")
+        static_com = CompositedClipPaths(fgr_path, pha_path, static_bgr, "static")
 
-    clips.append(dynamic_com)
-    clips.append(semi_dynamic_com)
-    clips.append(static_com)
+        clips.append(dynamic_com)
+        clips.append(semi_dynamic_com)
+        clips.append(static_com)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--videomatte-dir', type=str, required=True)
-    # parser.add_argument('--background-dir', type=str, required=True)
     parser.add_argument('--num-samples', type=int, default=20)
     parser.add_argument('--num-frames', type=int, default=100)
     parser.add_argument('--resize', type=int, default=None, nargs=2)
@@ -222,4 +127,4 @@ if __name__ == "__main__":
     # base_t = random.choice(range(len(framenames) - args.num_frames))
     base_t = 0
 
-    composite_multiple_bgr()
+    composite_multiple_bgr(clips)
