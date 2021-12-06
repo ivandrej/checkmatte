@@ -1,36 +1,10 @@
 """
-HR (High-Resolution) evaluation. We found using numpy is very slow for high resolution, so we moved it to PyTorch using CUDA.
 
-Note, the script only does evaluation. You will need to first inference yourself and save the results to disk
-Expected directory format for both prediction and ground-truth is:
+python evaluate_experiment.py \
+    --pred-dir ~/dev/data/composited_evaluation/VideoMatte5x3/out
 
-I THINK THIS FILE STRUCTURE IS WRONG, 
-    videomatte_1920x1080
-        ├── videomatte_motion
-          ├── pha
-            ├── 0000
-              ├── 0000.png
-          ├── fgr
-            ├── 0000
-              ├── 0000.png
-        ├── videomatte_static
-          ├── pha
-            ├── 0000
-              ├── 0000.png
-          ├── fgr
-            ├── 0000
-              ├── 0000.png
 
-Prediction must have the exact file structure and file name as the ground-truth,
-meaning that if the ground-truth is png/jpg, prediction should be png/jpg.
-
-Example usage:
-
-python evaluate.py \
-    --pred-dir pred/videomatte_1920x1080 \
-    --true-dir true/videomatte_1920x1080
-    
-An excel sheet with evaluation results will be written to "pred/videomatte_1920x1080/videomatte_1920x1080.xlsx"
+A .csv file will be written in the /out directory
 """
 import argparse
 import os
@@ -54,15 +28,12 @@ from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pred-dir', type=str, required=True)
-    # parser.add_argument('--true-dir', type=str, required=True)
+    parser.add_argument('--resize', type=int, default=None, nargs=2)
     parser.add_argument('--num-workers', type=int, default=48)
     parser.add_argument('--metrics', type=str, nargs='+', default=[
         'pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mse'])
     return parser.parse_args()
 
-
-# TODO: Take this from argument
-res = (512, 288)
 
 
 class Evaluator:
@@ -84,7 +55,7 @@ class Evaluator:
 
         with ThreadPoolExecutor(max_workers=self.args.num_workers) as executor:
             # for dataset in sorted(os.listdir(self.args.pred_dir)):
-            for clip in clips:
+            for clip in tqdm(clips):
                 future = executor.submit(self.evaluate_worker, clip.bgr_type, clip)
                 tasks.append((clip.bgr_type, clip, future))
 
@@ -133,9 +104,10 @@ class Evaluator:
 
         num_frames = min(len(true_fgr_frames), len(pred_fgr_frames))
         for t in tqdm(range(num_frames), desc=f'{dataset} {clip.clipname}'):
-            true_pha = video_frame_to_numpy(true_pha_frames[t], grayscale=True)
             pred_pha = video_frame_to_numpy(pred_pha_frames[t], grayscale=True)
+            true_pha = video_frame_to_numpy(true_pha_frames[t], grayscale=True, resize=args.resize)
 
+            # print(pred_pha.shape, true_pha.shape)
             assert (true_pha.shape == pred_pha.shape)
             if 'pha_mad' in self.args.metrics:
                 metrics['pha_mad'].append(self.mad(pred_pha, true_pha))
@@ -155,8 +127,8 @@ class Evaluator:
             true_pha_tm1 = true_pha
 
             if 'fgr_mse' in self.args.metrics:
-                true_fgr = video_frame_to_numpy(true_fgr_frames[t])
                 pred_fgr = video_frame_to_numpy(pred_fgr_frames[t])
+                true_fgr = video_frame_to_numpy(true_fgr_frames[t], resize=args.resize)
 
                 true_msk = true_pha > 0
                 metrics['fgr_mse'].append(self.mse(pred_fgr[true_msk], true_fgr[true_msk]))
@@ -164,13 +136,14 @@ class Evaluator:
         return metrics
 
 
-def video_frame_to_numpy(video_frame, grayscale=False):
+def video_frame_to_numpy(video_frame, resize=None, grayscale=False):
     img_frame = Image.fromarray(video_frame)
     if grayscale:
         img_frame = img_frame.convert("L")
 
-    resized_frame = img_frame.resize(res, Image.BILINEAR)
-    return torch.from_numpy(np.asarray(resized_frame)).float().div_(255)
+    if resize is not None:
+        img_frame = img_frame.resize(resize, Image.BILINEAR)
+    return torch.from_numpy(np.asarray(img_frame)).float().div_(255)
 
 
 if __name__ == '__main__':

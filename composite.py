@@ -27,7 +27,7 @@ def composite_multiple_bgr(clips):
         print(com_paths.bgr_path)
         out_dir = os.path.join(args.out_dir, com_paths.clipname)
         print("Creating: ", com_paths.clipname)
-        os.makedirs(out_dir)
+        os.makedirs(out_dir, exist_ok=True)
         if com_paths.bgr_path.endswith(".mp4") or com_paths.bgr_path.endswith(".MTS"):  # video background
             bgr_frames = pims.PyAVVideoReader(com_paths.bgr_path)
             fgr_vid_bgr_vid(bgr_frames, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
@@ -41,24 +41,18 @@ def com_clipname(pha_path, bgr_path):
     return "{}_{}".format(clipname_from_path(pha_path), clipname_from_path(bgr_path))
 
 
-def clipname_from_path(path):
-    from pathlib import Path
-    return Path(path).stem
-
-
-# TODO: Move this to a metadata file
 bgr_paths = {
     "dynamic": [
         "/media/andivanov/DATA/dynamic_backgrounds_captured/construction_site_1.mp4",
         "/media/andivanov/DATA/dynamic_backgrounds_captured/stairs.mp4",
         "/media/andivanov/DATA/dynamic_backgrounds_captured/yard.mp4",
-        "/media/andivanov/DATA/dynamic_backgrounds_captured/bikes2.mp4",
+        "/media/andivanov/DATA/dynamic_backgrounds_captured/bikes_2.mp4",
         "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
         "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
     ],
     "semi_dynamic": [
+        "/media/andivanov/DATA/DVM/bg/test/0065.mp4",
         "/media/andivanov/DATA/DVM/bg/test/0073.mp4",
-        "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
         "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
         "/media/andivanov/DATA/DVM/bg/test/0015.mp4",
         "/media/andivanov/DATA/DVM/bg/test/0043.mp4",
@@ -72,6 +66,12 @@ bgr_paths = {
         "/home/andivanov/dev/data/BGM_Image_Backgrounds/church_interior_226.res-church.jpg",
         "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
     ]}
+def clipname_from_path(path):
+    from pathlib import Path
+    return Path(path).stem
+
+
+# TODO: Move this to a metadata file
 
 fgr_paths = [
     "/media/andivanov/DATA/VideoMatte240K/test/fgr/0004.mp4",
@@ -108,9 +108,12 @@ assert(len(fgr_paths) == len(pha_paths))
 # Composite each fgr onto each bgr
 bgr_triples = list(zip(bgr_paths["dynamic"], bgr_paths["semi_dynamic"], bgr_paths["static"]))
 clips: List[CompositedClipPaths] = []
-print("{} foregrounds, {} backgrounds: ".format(len(fgr_paths), len(bgr_triples)))
+print("{} foregrounds, {} backgrounds: ".format(len(fgr_paths), len(bgr_triples) * 3))
 for i, (fgr_path, pha_path) in enumerate(zip(fgr_paths, pha_paths)):
     for dynamic_bgr, semi_dynamic_bgr, static_bgr in bgr_triples:
+        for video_path in (dynamic_bgr, semi_dynamic_bgr, static_bgr, fgr_path, pha_path):
+            if not os.path.exists(video_path):
+                raise Exception("{} does not exists".format(video_path))
         dynamic_com = CompositedClipPaths(fgr_path, pha_path, dynamic_bgr, "dynamic")
         semi_dynamic_com = CompositedClipPaths(fgr_path, pha_path, semi_dynamic_bgr, "semi_dynamic")
         static_com = CompositedClipPaths(fgr_path, pha_path, static_bgr, "static")
