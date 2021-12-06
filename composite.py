@@ -22,9 +22,11 @@ bgrs_per_fgr = 3
 Composite a list of foreground, background pairs
 """
 def composite_multiple_bgr(clips):
+    print("Will create {} composed clips".format(len(clips)))
     for com_paths in clips:
         print(com_paths.bgr_path)
         out_dir = os.path.join(args.out_dir, com_paths.clipname)
+        print("Creating: ", com_paths.clipname)
         os.makedirs(out_dir)
         if com_paths.bgr_path.endswith(".mp4") or com_paths.bgr_path.endswith(".MTS"):  # video background
             bgr_frames = pims.PyAVVideoReader(com_paths.bgr_path)
@@ -47,44 +49,44 @@ def clipname_from_path(path):
 # TODO: Move this to a metadata file
 bgr_paths = {
     "dynamic": [
-        "/home/andivanov/dev/data/dynamic_backgrounds_captured/construction_site_1.mp4",
-        # "/home/andivanov/dev/data/dynamic_backgrounds_captured/tram_station_walking_2.MOV.MOV",
-        # "/home/andivanov/dev/data/dynamic_backgrounds_captured/zurich_oldtown_store_bgr.MOV",
-        # "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
-        # "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
+        "/media/andivanov/DATA/dynamic_backgrounds_captured/construction_site_1.mp4",
+        "/media/andivanov/DATA/dynamic_backgrounds_captured/stairs.mp4",
+        "/media/andivanov/DATA/dynamic_backgrounds_captured/yard.mp4",
+        "/media/andivanov/DATA/dynamic_backgrounds_captured/bikes2.mp4",
+        "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
+        "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
     ],
     "semi_dynamic": [
         "/media/andivanov/DATA/DVM/bg/test/0073.mp4",
-        # "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
-        # "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
-        # "/media/andivanov/DATA/DVM/bg/test/0015.mp4",
-        # "/media/andivanov/DATA/DVM/bg/test/0043.mp4"
+        "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
+        "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
+        "/media/andivanov/DATA/DVM/bg/test/0015.mp4",
+        "/media/andivanov/DATA/DVM/bg/test/0043.mp4",
+        "/media/andivanov/DATA/DVM/bg/test/0070.mp4"
     ],
     "static": [
         "/home/andivanov/dev/data/BGM_Image_Backgrounds/classroom_interior_318.br420-1.jpg",
-        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
-        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
-        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
-        # "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/church_interior_226.res-church.jpg",
+        "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
     ]}
 
 fgr_paths = [
     "/media/andivanov/DATA/VideoMatte240K/test/fgr/0004.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0003.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0002.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0001.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/fgr/0000.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0003.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0002.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0001.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0000.mp4",
 ]
 pha_paths = [
     "/media/andivanov/DATA/VideoMatte240K/test/pha/0004.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0003.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0002.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0001.mp4",
-    # "/media/andivanov/DATA/VideoMatte240K/test/pha/0000.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/pha/0003.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/pha/0002.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/pha/0001.mp4",
+    "/media/andivanov/DATA/VideoMatte240K/test/pha/0000.mp4",
 ]
-
-bgr_triples = list(zip(bgr_paths["dynamic"], bgr_paths["semi_dynamic"], bgr_paths["static"]))
-assert (len(bgr_triples) == len(fgr_paths) == len(pha_paths))
 
 """
     Contains paths to fgr, pha and bgr we want to composite
@@ -100,9 +102,13 @@ class CompositedClipPaths:
         self.bgr_type = bgr_type
 
 
+assert(len(fgr_paths) == len(pha_paths))
+
 # Match foregrounds with backgrounds. Produces a flat list of (fgr, pha, bgr)
 # Composite each fgr onto each bgr
+bgr_triples = list(zip(bgr_paths["dynamic"], bgr_paths["semi_dynamic"], bgr_paths["static"]))
 clips: List[CompositedClipPaths] = []
+print("{} foregrounds, {} backgrounds: ".format(len(fgr_paths), len(bgr_triples)))
 for i, (fgr_path, pha_path) in enumerate(zip(fgr_paths, pha_paths)):
     for dynamic_bgr, semi_dynamic_bgr, static_bgr in bgr_triples:
         dynamic_com = CompositedClipPaths(fgr_path, pha_path, dynamic_bgr, "dynamic")
