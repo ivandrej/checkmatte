@@ -20,7 +20,7 @@ from PIL import Image
 from tqdm import tqdm
 
 import composite
-from composite import clips
+from composite import CompositedClipPaths
 from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
 
 
@@ -52,6 +52,10 @@ class Evaluator:
 
     def evaluate(self):
         tasks = []
+        clips = []
+        for clip_folder in self.args.pred_dir:
+            pha_path = os.path.join(self.args.pred_dir, clip_folder, "pha")
+            fgr_path = os.path.join(self.args.pred_dir, clip_folder, "fgr")
 
         with ThreadPoolExecutor(max_workers=self.args.num_workers) as executor:
             for clip in clips:
