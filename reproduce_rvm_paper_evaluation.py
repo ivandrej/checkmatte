@@ -11,6 +11,7 @@ import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 
+import cv2
 import numpy as np
 import pandas as pd
 import pims
@@ -19,15 +20,13 @@ import xlsxwriter
 from PIL import Image
 from tqdm import tqdm
 
-import composite
-from composite import CompositedClipPaths
 from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
 
 
 # Returns args object
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pred-dir', type=str, required=True)
+    parser.add_argument('--experiment-dir', type=str, required=True)
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     parser.add_argument('--num-workers', type=int, default=48)
     parser.add_argument('--metrics', type=str, nargs='+', default=[
@@ -41,8 +40,8 @@ class Evaluator:
         self.args = args
         self.init_metrics()
         self.evaluate()
-        # self.write_excel()
-        self.write_csv()
+        self.write_excel()
+        # self.write_csv()
 
     def init_metrics(self):
         self.mad = MetricMAD()
@@ -52,73 +51,68 @@ class Evaluator:
 
     def evaluate(self):
         tasks = []
-        clips = []
-        for clip_folder in self.args.pred_dir:
-            pha_path = os.path.join(self.args.pred_dir, clip_folder, "pha")
-            fgr_path = os.path.join(self.args.pred_dir, clip_folder, "fgr")
-
         with ThreadPoolExecutor(max_workers=self.args.num_workers) as executor:
-            for clip in clips:
-                future = executor.submit(self.evaluate_worker, clip.bgr_type, clip)
-                tasks.append((clip.bgr_type, clip, future))
+            for clip_name in os.listdir(os.path.join(self.args.experiment_dir, "input")):
+                # pred_pha_path = os.path.join(self.args.experiment_dir, "out", clip_folder, "pha")
+                # pred_fgr_path = os.path.join(self.args.experiment_dir, "out", clip_folder, "fgr")
+                #
+                # true_pha_path = os.path.join(self.args.experiment_dir, "input", clip_folder, "pha")
+                # true_fgr_path = os.path.join(self.args.experiment_dir, "input", clip_folder, "fgr")
 
-        self.results = [(dataset, clip.clipname, future.result()) for dataset, clip, future in tasks]
+                future = executor.submit(self.evaluate_worker, "dataset", clip_name)
+                tasks.append(("dataset", clip_name, future))
 
-    # TODO: Update description of method
-    """
-        Output table has the format: clipname, mad, mse, ....
-        output = {
-         clip1: [pha_mad_mean, mse_mean, ..., fgr_mad_mean
-         ]
-        } 
-    """
-    def write_csv(self):
-        output_dict = {}
-        pha_mad_dict = {}
-        max_num_frames = 0
-        # Each row is one clip
-        for row, (dataset, clipname, metrics) in enumerate(self.results):
-            pha_mad_dict[clipname] = np.array(metrics['pha_mad']).astype(float)
+        self.results = [(dataset, clip_name, future.result()) for dataset, clip_name, future in tasks]
 
-            max_num_frames = max(max_num_frames, len(metrics['pha_mad']))
-            metric_mean_over_frames = list(map(lambda metric_values: np.mean(metric_values), metrics.values()))
-            output_dict[clipname] = metric_mean_over_frames
-            output_dict[clipname] = metric_mean_over_frames + [dataset]
+    def write_excel(self):
+        workbook = xlsxwriter.Workbook(os.path.join(self.args.experiment_dir, "out.xlsx"))
+        print("Writing Excel: ", workbook.filename)
+        summarysheet = workbook.add_worksheet('summary')
+        metricsheets = [workbook.add_worksheet(metric) for metric in self.results[0][2].keys()]
 
-        columns = list(self.results[0][2].keys()) + ["bgr_type"]
-        df = pd.DataFrame.from_dict(output_dict, orient="index", columns=columns)
+        for i, metric in enumerate(self.results[0][2].keys()):
+            summarysheet.write(i, 0, metric)
+            summarysheet.write(i, 1, f'={metric}!B2')
 
-        df.loc["dynamic_mean"] = df.loc[df.bgr_type == "dynamic"].mean()
-        df.loc["semi_dynamic_mean"] = df.loc[df.bgr_type == "semi_dynamic"].mean()
-        df.loc["static_mean"] = df.loc[df.bgr_type == "static"].mean()
+        for row, (dataset, clip, metrics) in enumerate(self.results):
+            for metricsheet, metric in zip(metricsheets, metrics.values()):
+                # Write the header
+                if row == 0:
+                    metricsheet.write(1, 0, 'Average')
+                    metricsheet.write(1, 1, f'=AVERAGE(C2:ZZ2)')
+                    for col in range(len(metric)):
+                        metricsheet.write(0, col + 2, col)
+                        colname = xlsxwriter.utility.xl_col_to_name(col + 2)
+                        metricsheet.write(1, col + 2, f'=AVERAGE({colname}3:{colname}9999)')
 
-        df.to_csv(os.path.join(self.args.pred_dir, "metrics.csv"), index_label="clipname")
+                metricsheet.write(row + 2, 0, dataset)
+                metricsheet.write(row + 2, 1, clip)
+                metricsheet.write_row(row + 2, 2, metric)
 
-        # A column for each frame
-        pha_mad_columns = list(range(max_num_frames))
-        df_pha_mad = pd.DataFrame.from_dict(pha_mad_dict, orient="index", columns=pha_mad_columns)
-        df_pha_mad.to_csv(os.path.join(self.args.pred_dir, "pha_mad.csv"), index_label="clipname")
+        workbook.close()
 
-    def evaluate_worker(self, dataset, clip: composite.CompositedClipPaths):
-        print("Clip: ", clip.clipname)
-        true_fgr_frames = pims.PyAVVideoReader(clip.fgr_path)
-        true_pha_frames = pims.PyAVVideoReader(clip.pha_path)
-
-        pred_fgr_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip.clipname, "fgr.mp4"))
-        pred_pha_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip.clipname, "pha.mp4"))
-
-        assert (len(true_fgr_frames) == len(true_pha_frames))
-        assert (len(pred_fgr_frames) == len(pred_pha_frames))
-
+    def evaluate_worker(self, dataset, clip_name):
+        # true_fgr_frames = pims.PyAVVideoReader(clip.fgr_path)
+        # true_pha_frames = pims.PyAVVideoReader(clip.pha_path)
+        #
+        # pred_fgr_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip.clipname, "fgr.mp4"))
+        # pred_pha_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip.clipname, "pha.mp4"))
+        #
+        # assert (len(true_fgr_frames) == len(true_pha_frames))
+        # assert (len(pred_fgr_frames) == len(pred_pha_frames))
+        print(clip_name)
+        framenames = sorted(os.listdir(os.path.join(self.args.experiment_dir, "input", clip_name, "pha")))
         metrics = {metric_name: [] for metric_name in self.args.metrics}
 
         pred_pha_tm1 = None
         true_pha_tm1 = None
 
-        num_frames = min(len(true_fgr_frames), len(pred_fgr_frames))
-        for t in tqdm(range(num_frames), desc=f'{dataset} {clip.clipname}'):
-            pred_pha = video_frame_to_numpy(pred_pha_frames[t], grayscale=True)
-            true_pha = video_frame_to_numpy(true_pha_frames[t], grayscale=True, resize=args.resize)
+        # num_frames = min(len(true_fgr_frames), len(pred_fgr_frames))
+        for i, framename in enumerate(tqdm(framenames, desc=f'{clip_name}', dynamic_ncols=True)):
+            true_pha = torch.from_numpy(np.asarray(cv2.imread(os.path.join(self.args.experiment_dir, "input", clip_name, 'pha', framename),
+                                  cv2.IMREAD_GRAYSCALE))).float().div_(255)
+            pred_pha = torch.from_numpy(np.asarray(cv2.imread(os.path.join(self.args.experiment_dir, "out", clip_name, 'pha', framename),
+                                  cv2.IMREAD_GRAYSCALE))).float().div_(255)
 
             # print(pred_pha.shape, true_pha.shape)
             assert (true_pha.shape == pred_pha.shape)
@@ -131,7 +125,7 @@ class Evaluator:
             if 'pha_conn' in self.args.metrics:
                 metrics['pha_conn'].append(self.conn(pred_pha, true_pha))
             if 'pha_dtssd' in self.args.metrics:
-                if t == 0:
+                if i == 0:
                     metrics['pha_dtssd'].append(0)
                 else:
                     metrics['pha_dtssd'].append(self.dtssd(pred_pha, pred_pha_tm1, true_pha, true_pha_tm1))
@@ -140,14 +134,19 @@ class Evaluator:
             true_pha_tm1 = true_pha
 
             if 'fgr_mse' in self.args.metrics or 'fgr_mda' in self.args.metrics:
-                pred_fgr = video_frame_to_numpy(pred_fgr_frames[t])
-                true_fgr = video_frame_to_numpy(true_fgr_frames[t], resize=args.resize)
-                true_msk = true_pha > 0
+                true_fgr = torch.from_numpy(
+                    np.asarray(cv2.imread(os.path.join(self.args.experiment_dir, "input", clip_name, 'fgr', framename),
+                                          cv2.IMREAD_GRAYSCALE))).float().div_(255)
+                pred_fgr = torch.from_numpy(
+                    np.asarray(cv2.imread(os.path.join(self.args.experiment_dir, "out", clip_name, 'fgr', framename),
+                                          cv2.IMREAD_GRAYSCALE))).float().div_(255)
 
-                if 'fgr_mse' in self.args.metrics:
-                    metrics['fgr_mse'].append(self.mse(pred_fgr[true_msk], true_fgr[true_msk]))
-                if 'fgr_mad' in self.args.metrics:
-                    metrics['fgr_mad'].append(self.mad(pred_fgr[true_msk], true_fgr[true_msk]))
+            true_msk = true_pha > 0
+
+            if 'fgr_mse' in self.args.metrics:
+                metrics['fgr_mse'].append(self.mse(pred_fgr[true_msk], true_fgr[true_msk]))
+            if 'fgr_mad' in self.args.metrics:
+                metrics['fgr_mad'].append(self.mad(pred_fgr[true_msk], true_fgr[true_msk]))
 
         return metrics
 
