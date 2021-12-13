@@ -6,6 +6,7 @@ python python composite.py
 """
 
 import argparse
+import json
 import os
 from typing import List
 
@@ -38,60 +39,22 @@ def composite_multiple_bgr(clips):
 
 
 def com_clipname(pha_path, bgr_path):
+    # print("Pha path", pha_path)
+    # if os.path.isdir(pha_path):
+    #     print("Pha is dir")
+    #     fgr_clip = clipname_from_path(os.path.join(pha_path, ".."))
+    # else:
+    #     fgr_clip = clipname_from_path(pha_path)
+    #
+    # print("Fgr clip: ", fgr_clip)
     return "{}_{}".format(clipname_from_path(pha_path), clipname_from_path(bgr_path))
 
 
-bgr_paths = {
-    "dynamic": [
-        "/media/andivanov/DATA/dynamic_backgrounds_captured/construction_site_1.mp4",
-        "/media/andivanov/DATA/dynamic_backgrounds_captured/stairs.mp4",
-        "/media/andivanov/DATA/dynamic_backgrounds_captured/yard.mp4",
-        "/media/andivanov/DATA/dynamic_backgrounds_captured/bikes_2.mp4",
-        "/data/our_dynamic_foreground_captures/Captures Andrej/00037.MTS",
-        "/data/our_dynamic_foreground_captures/Captures Andrej/00044.MTS"
-    ],
-    "semi_dynamic": [
-        "/media/andivanov/DATA/DVM/bg/test/0065.mp4",
-        "/media/andivanov/DATA/DVM/bg/test/0073.mp4",
-        "/media/andivanov/DATA/DVM/bg/test/0010.mp4",
-        "/media/andivanov/DATA/DVM/bg/test/0015.mp4",
-        "/media/andivanov/DATA/DVM/bg/test/0043.mp4",
-        "/media/andivanov/DATA/DVM/bg/test/0070.mp4"
-    ],
-    "static": [
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/classroom_interior_318.br420-1.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/bar_interior_348.death&co__mg_9751-copy.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/canyon_0369.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/garage_interior_121.9.-2019-e-3rd-interior-departamento-1.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/church_interior_226.res-church.jpg",
-        "/home/andivanov/dev/data/BGM_Image_Backgrounds/empty_city_115.empty-city-streets-atlanta-georgia-jackson-bridge.jpg"
-    ]}
 def clipname_from_path(path):
     from pathlib import Path
     return Path(path).stem
 
-
-# TODO: Move this to a metadata file
-
-fgr_paths = [
-    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0004.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0003.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0002.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0001.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/fgr/0000.mp4",
-]
-pha_paths = [
-    "/media/andivanov/DATA/VideoMatte240K/test/pha/0004.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/pha/0003.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/pha/0002.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/pha/0001.mp4",
-    "/media/andivanov/DATA/VideoMatte240K/test/pha/0000.mp4",
-]
-
-"""
-    Contains paths to fgr, pha and bgr we want to composite
-"""
-
+# "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0001"
 
 class CompositedClipPaths:
     def __init__(self, fgr_path, pha_path, bgr_path, bgr_type):
@@ -101,6 +64,13 @@ class CompositedClipPaths:
         self.clipname = com_clipname(pha_path, bgr_path)
         self.bgr_type = bgr_type
 
+# TODO: pass in json file as cmdl argument
+# TODO: Move to a separate file (data reader)
+with open("experiment_metadata/VideoMatte5x18_videos.json", "r") as f:
+    data = json.load(f)
+    bgr_paths = data["bgr_paths"]
+    fgr_paths = data["fgr_paths"]
+    pha_paths = data["pha_paths"]
 
 assert(len(fgr_paths) == len(pha_paths))
 
