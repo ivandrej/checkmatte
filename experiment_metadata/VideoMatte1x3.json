@@ -1,0 +1,19 @@
+{
+    "bgr_paths": {
+        "dynamic": [
+            "/media/andivanov/DATA/dynamic_backgrounds_captured/construction_site_1.mp4"
+        ],
+        "semi_dynamic": [
+            "/media/andivanov/DATA/DVM/bg/test/0065.mp4"
+        ],
+        "static": [
+            "/home/andivanov/dev/data/BGM_Image_Backgrounds/classroom_interior_318.br420-1.jpg"
+        ]
+    },
+    "fgr_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0004"
+    ],
+    "pha_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/pha/0004"
+    ]
+}

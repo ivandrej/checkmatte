@@ -54,8 +54,6 @@ def clipname_from_path(path):
     from pathlib import Path
     return Path(path).stem
 
-# "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0001"
-
 class CompositedClipPaths:
     def __init__(self, fgr_path, pha_path, bgr_path, bgr_type):
         self.fgr_path = fgr_path
@@ -66,7 +64,8 @@ class CompositedClipPaths:
 
 # TODO: pass in json file as cmdl argument
 # TODO: Move to a separate file (data reader)
-with open("experiment_metadata/VideoMatte5x18_videos.json", "r") as f:
+# with open("experiment_metadata/VideoMatte5x18_img_seq.json", "r") as f:
+with open("experiment_metadata/VideoMatte5x18_img_seq.json", "r") as f:
     data = json.load(f)
     bgr_paths = data["bgr_paths"]
     fgr_paths = data["fgr_paths"]

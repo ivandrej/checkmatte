@@ -26,17 +26,17 @@
         ]
     },
     "fgr_paths": [
-        "/media/andivanov/DATA/VideoMatte240K/test/fgr/0004.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/fgr/0003.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/fgr/0002.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/fgr/0001.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/fgr/0000.mp4"
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0004",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0003",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0002",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0001",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/fgr/0000"
     ],
     "pha_paths": [
-        "/media/andivanov/DATA/VideoMatte240K/test/pha/0004.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/pha/0003.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/pha/0002.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/pha/0001.mp4",
-        "/media/andivanov/DATA/VideoMatte240K/test/pha/0000.mp4"
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/pha/0004",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/pha/0003",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/pha/0002",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/pha/0001",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_HD/test/pha/0000"
     ]
 }
