@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 import pims
 import torch
-import xlsxwriter
 from PIL import Image
 from tqdm import tqdm
 
