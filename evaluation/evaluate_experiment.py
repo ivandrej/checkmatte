@@ -1,7 +1,8 @@
 """
 
 python evaluate_experiment.py \
-    --pred-dir ~/dev/data/composited_evaluation/VideoMatte5x3/out
+    --pred-dir ~/dev/data/composited_evaluation/VideoMatte5x3/out \
+    --experiment-metadata experiment_metadata/VMxDVM_0013.json
 
 
 A .csv file will be written in the /out directory
@@ -20,7 +21,6 @@ from PIL import Image
 from tqdm import tqdm
 
 import composite
-from composite import clips
 from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
 
 
@@ -28,7 +28,8 @@ from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pred-dir', type=str, required=True)
-    parser.add_argument('--resize', type=int, default=None, nargs=2)
+    parser.add_argument('--experiment-metadata', type=str, required=True)
+    parser.add_argument('--resize', type=int, required=True, nargs=2)
     parser.add_argument('--num-workers', type=int, default=48)
     parser.add_argument('--metrics', type=str, nargs='+', default=[
         'pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse'])
@@ -53,6 +54,7 @@ class Evaluator:
     def evaluate(self):
         tasks = []
 
+        clips = composite.read_metadata(args.experiment_metadata)
         with ThreadPoolExecutor(max_workers=self.args.num_workers) as executor:
             for clip in clips:
                 future = executor.submit(self.evaluate_worker_img_seq, clip.bgr_type, clip)

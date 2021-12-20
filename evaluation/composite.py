@@ -1,6 +1,7 @@
 """
 python python composite.py
     --out-dir ~/dev/data/composited_evaluation/experiment3/input
+    --experiment-metadata experiment_metadata/VMxDVM_0013.json
     --resize 512 288
     --num-frames 600
 """
@@ -62,7 +63,7 @@ class CompositedClipPaths:
         self.bgr_type = bgr_type
 
 
-def read_data(experiment_metadata_path):
+def read_metadata(experiment_metadata_path):
     with open(experiment_metadata_path, "r") as f:
         data = json.load(f)
         bgr_paths = data["bgr_paths"]
@@ -103,5 +104,5 @@ if __name__ == "__main__":
 
     os.makedirs(os.path.join(args.out_dir), exist_ok=True)
 
-    clips = read_data(args.experiment_metadata)
+    clips = read_metadata(args.experiment_metadata)
     composite_fgrs_to_bgrs(clips)
