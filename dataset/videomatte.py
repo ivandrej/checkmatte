@@ -23,9 +23,12 @@ class VideoMatteDataset(Dataset):
         self.videomatte_clips = sorted(os.listdir(os.path.join(videomatte_dir, 'fgr')))
         self.videomatte_frames = [sorted(os.listdir(os.path.join(videomatte_dir, 'fgr', clip))) 
                                   for clip in self.videomatte_clips]
-        self.videomatte_idx = [(clip_idx, frame_idx) 
+        # Divide clips with frames into samples representing a part of a clip of length seq_length
+        # frame_idx is the starting index of a sequence of length seq_length
+        self.videomatte_idx = [(clip_idx, frame_idx)
                                for clip_idx in range(len(self.videomatte_clips)) 
                                for frame_idx in range(0, len(self.videomatte_frames[clip_idx]), seq_length)]
+
         self.size = size
         self.seq_length = seq_length
         self.seq_sampler = seq_sampler
@@ -67,7 +70,11 @@ class VideoMatteDataset(Dataset):
                 bgr = self._downsample_if_needed(bgr.convert('RGB'))
             bgrs.append(bgr)
         return bgrs
-    
+
+    """
+        Return a list of (fgr, bgr) Image pairs of length self.seq_length.
+        The subsequence corresponds to subsequence with index idx, constructed in __init__
+    """
     def _get_videomatte(self, idx):
         clip_idx, frame_idx = self.videomatte_idx[idx]
         clip = self.videomatte_clips[clip_idx]
@@ -120,4 +127,22 @@ class VideoMatteValidAugmentation(MotionAugmentation):
             prob_blur=0,
             prob_hflip=0,
             prob_pause=0,
+        )
+
+
+class VideoMatteSpecializedAugmentation(MotionAugmentation):
+    def __init__(self, size):
+        super().__init__(
+            size=size,
+            prob_fgr_affine=0,
+            prob_bgr_affine=0,
+            prob_noise=0,
+            prob_color_jitter=0,
+            prob_grayscale=0,
+            prob_sharpness=0,
+            prob_blur=0,
+            prob_hflip=0,
+            prob_pause=0,
+            static_affine=False,
+            random_sized_crop=False
         )

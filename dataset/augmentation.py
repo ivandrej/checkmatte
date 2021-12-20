@@ -18,6 +18,7 @@ class MotionAugmentation:
                  prob_hflip,
                  prob_pause,
                  static_affine=True,
+                 random_sized_crop=True,
                  aspect_ratio_range=(0.9, 1.1)):
         self.size = size
         self.prob_fgr_affine = prob_fgr_affine
@@ -31,7 +32,8 @@ class MotionAugmentation:
         self.prob_pause = prob_pause
         self.static_affine = static_affine
         self.aspect_ratio_range = aspect_ratio_range
-        
+        self.random_sized_crop = random_sized_crop
+
     def __call__(self, fgrs, phas, bgrs):
         # Foreground affine
         if random.random() < self.prob_fgr_affine:
@@ -52,13 +54,18 @@ class MotionAugmentation:
         fgrs = torch.stack([F.to_tensor(fgr) for fgr in fgrs])
         phas = torch.stack([F.to_tensor(pha) for pha in phas])
         bgrs = torch.stack([F.to_tensor(bgr) for bgr in bgrs])
-        
+
         # Resize
-        params = transforms.RandomResizedCrop.get_params(fgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
-        fgrs = F.resized_crop(fgrs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
-        phas = F.resized_crop(phas, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
-        params = transforms.RandomResizedCrop.get_params(bgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
-        bgrs = F.resized_crop(bgrs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
+        if self.random_sized_crop:
+            params = transforms.RandomResizedCrop.get_params(fgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
+            fgrs = F.resized_crop(fgrs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            phas = F.resized_crop(phas, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            params = transforms.RandomResizedCrop.get_params(bgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
+            bgrs = F.resized_crop(bgrs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
+        else:
+            fgrs = F.resize(fgrs, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            phas = F.resize(phas, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            bgrs = F.resize(bgrs, self.size, interpolation=F.InterpolationMode.BILINEAR)
 
         # Horizontal flip
         if random.random() < self.prob_hflip:
@@ -233,7 +240,11 @@ class Step: # Custom easing function for sudden change.
 
 # ---------------------------- Frame Sampler ----------------------------
 
-
+"""
+    Speeds up, temporally translates, reverses video.
+    Input: length of the sequence.
+    Output: A list of sampled indices
+"""
 class TrainFrameSampler:
     def __init__(self, speed=[0.5, 1, 2, 3, 4, 5]):
         self.speed = speed

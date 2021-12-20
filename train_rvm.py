@@ -6,7 +6,7 @@
 # machine is out of memory.
 
 # Stage 1
-python train.py \
+python train_rvm.py \
     --model-variant mobilenetv3 \
     --dataset videomatte \
     --resolution-lr 512 \
@@ -21,7 +21,7 @@ python train.py \
     --epoch-end 20
 
 # Stage 2
-python train.py \
+python train_rvm.py \
     --model-variant mobilenetv3 \
     --dataset videomatte \
     --resolution-lr 512 \
@@ -37,7 +37,7 @@ python train.py \
     --epoch-end 22
     
 # Stage 3
-python train.py \
+python train_rvm.py \
     --model-variant mobilenetv3 \
     --dataset videomatte \
     --train-hr \
@@ -56,7 +56,7 @@ python train.py \
     --epoch-end 23
 
 # Stage 4
-python train.py \
+python train_rvm.py \
     --model-variant mobilenetv3 \
     --dataset imagematte \
     --train-hr \
@@ -102,7 +102,7 @@ from dataset.videomatte import (
 )
 
 from model import MattingNetwork
-from train_config import DATA_PATHS
+from train_config import RVM_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss
 
 
@@ -170,23 +170,23 @@ class Trainer:
         
         # Matting datasets:
         self.dataset_lr_train = VideoMatteDataset(
-            videomatte_dir=DATA_PATHS['videomatte']['train'],
-            background_video_dir=DATA_PATHS['background_videos']['train'],
+            videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
+            background_video_dir=RVM_DATA_PATHS['background_videos']['train'],
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
             transform=VideoMatteTrainAugmentation(size_lr))
         if self.args.train_hr:
             self.dataset_hr_train = VideoMatteDataset(
-                videomatte_dir=DATA_PATHS['videomatte']['train'],
-                background_video_dir=DATA_PATHS['background_videos']['train'],
+                videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
+                background_video_dir=RVM_DATA_PATHS['background_videos']['train'],
                 size=self.args.resolution_hr,
                 seq_length=self.args.seq_length_hr,
                 seq_sampler=TrainFrameSampler(),
                 transform=VideoMatteTrainAugmentation(size_hr))
         self.dataset_valid = VideoMatteDataset(
-            videomatte_dir=DATA_PATHS['videomatte']['valid'],
-            background_video_dir=DATA_PATHS['background_videos']['valid'],
+            videomatte_dir=RVM_DATA_PATHS['videomatte']['valid'],
+            background_video_dir=RVM_DATA_PATHS['background_videos']['valid'],
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
@@ -250,7 +250,6 @@ class Trainer:
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
             self.epoch = epoch
             self.step = epoch * len(self.dataloader_lr_train)
-            
             if not self.args.disable_validation:
                 self.validate()
             

@@ -31,8 +31,7 @@ Background Video Train/Valid
 """
 
 
-DATA_PATHS = {
-    
+RVM_DATA_PATHS = {
     'videomatte': {
         'train': '/media/andivanov/DATA/VideoMatte240K_JPEG_HD_dummy_train/train',
         'valid': '/media/andivanov/DATA/VideoMatte240K_JPEG_HD_dummy_train/valid',
@@ -40,5 +39,19 @@ DATA_PATHS = {
     'background_videos': {
         'train': '/media/andivanov/DATA/DVM_JPEG/train',
         'valid': '/media/andivanov/DATA/DVM_JPEG/valid',
+    }
+}
+
+SPECIALIZED_DATA_PATHS = {
+    # TODO: Change to actual VideoMatte240K_JPEG_HD train
+    'videomatte': {
+        'train': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD_dummy_train/train',
+        'valid': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD_dummy_train/valid',
+    },
+    'background_video': {
+        'train': '/media/andivanov/DATA/DVM_JPEG/train',
+        'valid': '/media/andivanov/DATA/DVM_JPEG/valid',
+        # 'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/train',
+        # 'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/valid',
     }
 }
