@@ -13,20 +13,21 @@ class VideoMatteDataset(Dataset):
                  size,
                  seq_length,
                  seq_sampler,
+                 max_videomatte_clips=None,
                  transform=None):
         self.background_video_dir = background_video_dir
-        self.background_video_clips = sorted(os.listdir(background_video_dir))
+        self.videomatte_dir = videomatte_dir
+        self.background_video_clips = self.get_background_clips(background_video_dir, max_videomatte_clips)
         self.background_video_frames = [sorted(os.listdir(os.path.join(background_video_dir, clip)))
                                         for clip in self.background_video_clips]
-        
-        self.videomatte_dir = videomatte_dir
-        self.videomatte_clips = sorted(os.listdir(os.path.join(videomatte_dir, 'fgr')))
-        self.videomatte_frames = [sorted(os.listdir(os.path.join(videomatte_dir, 'fgr', clip))) 
+        self.videomatte_clips = self.get_videomatte_clips(videomatte_dir, max_videomatte_clips)
+        self.videomatte_frames = [sorted(os.listdir(os.path.join(videomatte_dir, 'fgr', clip)))
                                   for clip in self.videomatte_clips]
+
         # Divide clips with frames into samples representing a part of a clip of length seq_length
         # frame_idx is the starting index of a sequence of length seq_length
         self.videomatte_idx = [(clip_idx, frame_idx)
-                               for clip_idx in range(len(self.videomatte_clips)) 
+                               for clip_idx in range(len(self.videomatte_clips))
                                for frame_idx in range(0, len(self.videomatte_frames[clip_idx]), seq_length)]
 
         self.size = size
@@ -36,19 +37,19 @@ class VideoMatteDataset(Dataset):
 
     def __len__(self):
         return len(self.videomatte_idx)
-    
+
     def __getitem__(self, idx):
         if random.random() < 0.5:
             # bgrs = self._get_random_image_background()
             bgrs = self._get_random_video_background()
         else:
             bgrs = self._get_random_video_background()
-        
+
         fgrs, phas = self._get_videomatte(idx)
-        
+
         if self.transform is not None:
             return self.transform(fgrs, phas, bgrs)
-        
+
         return fgrs, phas, bgrs
 
     # def _get_random_image_background(self):
@@ -75,6 +76,7 @@ class VideoMatteDataset(Dataset):
         Return a list of (fgr, bgr) Image pairs of length self.seq_length.
         The subsequence corresponds to subsequence with index idx, constructed in __init__
     """
+
     def _get_videomatte(self, idx):
         clip_idx, frame_idx = self.videomatte_idx[idx]
         clip = self.videomatte_clips[clip_idx]
@@ -83,13 +85,13 @@ class VideoMatteDataset(Dataset):
         for i in self.seq_sampler(self.seq_length):
             frame = self.videomatte_frames[clip_idx][(frame_idx + i) % frame_count]
             with Image.open(os.path.join(self.videomatte_dir, 'fgr', clip, frame)) as fgr, \
-                 Image.open(os.path.join(self.videomatte_dir, 'pha', clip, frame)) as pha:
-                    fgr = self._downsample_if_needed(fgr.convert('RGB'))
-                    pha = self._downsample_if_needed(pha.convert('L'))
+                    Image.open(os.path.join(self.videomatte_dir, 'pha', clip, frame)) as pha:
+                fgr = self._downsample_if_needed(fgr.convert('RGB'))
+                pha = self._downsample_if_needed(pha.convert('L'))
             fgrs.append(fgr)
             phas.append(pha)
         return fgrs, phas
-    
+
     def _downsample_if_needed(self, img):
         w, h = img.size
         if min(w, h) > self.size:
@@ -98,6 +100,18 @@ class VideoMatteDataset(Dataset):
             h = int(scale * h)
             img = img.resize((w, h))
         return img
+
+    def get_background_clips(self, background_video_dir, max_videomatte_clips):
+        clips = sorted(os.listdir(background_video_dir))
+        if max_videomatte_clips:
+            clips = clips[:max_videomatte_clips]
+        return clips
+
+    def get_videomatte_clips(self, videomatte_dir, max_videomatte_clips):
+        clips = sorted(os.listdir(os.path.join(videomatte_dir, 'fgr')))
+        clips = clips[:max_videomatte_clips]
+        return clips
+
 
 class VideoMatteTrainAugmentation(MotionAugmentation):
     def __init__(self, size):
@@ -113,6 +127,7 @@ class VideoMatteTrainAugmentation(MotionAugmentation):
             prob_hflip=0.5,
             prob_pause=0.03,
         )
+
 
 class VideoMatteValidAugmentation(MotionAugmentation):
     def __init__(self, size):

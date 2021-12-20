@@ -121,6 +121,7 @@ class Trainer:
         parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'resnet50'])
         # Matting dataset
         parser.add_argument('--dataset', type=str, required=True, choices=['videomatte', 'imagematte'])
+        parser.add_argument('--videomatte-clips', type=int, required=True)
         # Learning rate
         parser.add_argument('--learning-rate-backbone', type=float, required=True)
         parser.add_argument('--learning-rate-aspp', type=float, required=True)
@@ -174,7 +175,8 @@ class Trainer:
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMatteSpecializedAugmentation(size_lr))  # valid augmentation is 0 augmentation
+            transform=VideoMatteSpecializedAugmentation(size_lr),
+            max_videomatte_clips=self.args.videomatte_clips)  # valid augmentation is 0 augmentation
         if self.args.train_hr:
             self.dataset_hr_train = VideoMatteDataset(
                 videomatte_dir=SPECIALIZED_DATA_PATHS['videomatte']['train'],
@@ -182,7 +184,9 @@ class Trainer:
                 size=self.args.resolution_hr,
                 seq_length=self.args.seq_length_hr,
                 seq_sampler=TrainFrameSampler(),
-                transform=VideoMatteSpecializedAugmentation(size_hr))
+                transform=VideoMatteSpecializedAugmentation(size_hr),
+                max_videomatte_clips=self.args.videomatte_clips
+            )
         self.dataset_valid = VideoMatteDataset(
             videomatte_dir=SPECIALIZED_DATA_PATHS['videomatte']['valid'],
             background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['valid'],
@@ -271,7 +275,7 @@ class Trainer:
                     self.save()
 
                 self.step += 1
-                print("Step: ", self.step)
+                # print("Step: ", self.step)
 
     def train_mat(self, true_fgr, true_pha, true_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)

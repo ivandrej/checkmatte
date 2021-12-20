@@ -43,14 +43,14 @@ RVM_DATA_PATHS = {
 }
 
 SPECIALIZED_DATA_PATHS = {
-    # TODO: Change to actual VideoMatte240K_JPEG_HD train
     'videomatte': {
-        'train': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD_dummy_train/train',
-        'valid': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD_dummy_train/valid',
+        'train': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD/train',
+        'valid': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD/valid',
     },
+    # Currently we pass a directory of videos. Make sure this directory contains a single video folder
     'background_video': {
-        'train': '/media/andivanov/DATA/DVM_JPEG/train',
-        'valid': '/media/andivanov/DATA/DVM_JPEG/valid',
+        'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/bgr/train',
+        'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/bgr/valid',
         # 'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/train',
         # 'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/valid',
     }
