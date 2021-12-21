@@ -24,6 +24,7 @@ import composite
 from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
 
 
+METRICS = ['pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse']
 # Returns args object
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -31,13 +32,12 @@ def parse_args():
     parser.add_argument('--experiment-metadata', type=str, required=True)
     parser.add_argument('--resize', type=int, required=True, nargs=2)
     parser.add_argument('--num-workers', type=int, default=48)
-    parser.add_argument('--metrics', type=str, nargs='+', default=[
-        'pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse'])
+    parser.add_argument('--metrics', type=str, nargs='+', default=METRICS)
     return parser.parse_args()
 
 
 class Evaluator:
-    def __init__(self, pred_dir, experiment_metadata, metrics, num_workers, resize):
+    def __init__(self, pred_dir, experiment_metadata, num_workers, resize, metrics=METRICS):
         # self.args = args
         self.experiment_metadata = experiment_metadata
         self.pred_dir = pred_dir

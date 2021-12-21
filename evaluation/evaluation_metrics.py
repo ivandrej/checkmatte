@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 import kornia
 import numpy as np
@@ -25,8 +27,11 @@ class MetricGRAD:
         return ((true_grad - pred_grad) ** 2).sum() / 1000
 
     def gauss_gradient(self, img):
-        img_filtered_x = kornia.filters.filter2D(img[None, None, :, :], self.filter_x, border_type='replicate')[0, 0]
-        img_filtered_y = kornia.filters.filter2D(img[None, None, :, :], self.filter_y, border_type='replicate')[0, 0]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            warnings.warn("deprecated", DeprecationWarning)
+            img_filtered_x = kornia.filters.filter2D(img[None, None, :, :], self.filter_x, border_type='replicate')[0, 0]
+            img_filtered_y = kornia.filters.filter2D(img[None, None, :, :], self.filter_y, border_type='replicate')[0, 0]
         return (img_filtered_x ** 2 + img_filtered_y ** 2).sqrt()
 
     @staticmethod

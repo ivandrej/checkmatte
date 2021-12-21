@@ -25,7 +25,7 @@ Composite a list of foreground, background pairs
 """
 
 
-def composite_fgrs_to_bgrs(base_out_dir, experiment_metadata):
+def composite_fgrs_to_bgrs(base_out_dir, experiment_metadata, args):
     os.makedirs(base_out_dir, exist_ok=True)
 
     clips = read_metadata(experiment_metadata)
@@ -105,4 +105,4 @@ if __name__ == "__main__":
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     args = parser.parse_args()
 
-    composite_fgrs_to_bgrs(args.out_dir, args.experiment_metadata)
+    composite_fgrs_to_bgrs(args.out_dir, args.experiment_metadata, args)
