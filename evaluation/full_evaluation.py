@@ -22,6 +22,7 @@ def read_args():
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     parser.add_argument('--num-frames', type=int, default=100)
     parser.add_argument('--num-workers', type=int, default=48)
+    parser.add_argument('--skip-compose', action="store_true")
     return parser.parse_args()
 
 
@@ -29,8 +30,11 @@ if __name__ == "__main__":
     args = read_args()
     input_dir = os.path.join(args.experiment_dir, "input")
     out_dir = os.path.join(args.experiment_dir, "out")
-    print("Composing foregrounds onto backgrounds...")
-    composite.composite_fgrs_to_bgrs(input_dir, args.experiment_metadata, args)
+    if not args.skip_compose:
+        print("Composing foregrounds onto backgrounds...")
+        composite.composite_fgrs_to_bgrs(input_dir, args.experiment_metadata, args)
+    else:
+        print("Skipping compose step...")
 
     print("Performing inference...")
     perform_experiment.inference(args.experiment_dir, args.load_model)

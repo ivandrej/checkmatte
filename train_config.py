@@ -49,8 +49,14 @@ SPECIALIZED_DATA_PATHS = {
     },
     # Currently we pass a directory of videos. Make sure this directory contains a single video folder
     'background_video': {
-        'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/bgr/train',
-        'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/bgr/valid',
+        'dvm0013': {
+            'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/bgr/train',
+            'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/bgr/valid'
+        },
+        'room': {
+            'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/room/train',
+            'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/room/valid'
+        }
         # 'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/train',
         # 'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/valid',
     }

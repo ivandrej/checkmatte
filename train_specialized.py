@@ -171,16 +171,16 @@ class Trainer:
         # Matting datasets:
         self.dataset_lr_train = VideoMatteDataset(
             videomatte_dir=SPECIALIZED_DATA_PATHS['videomatte']['train'],
-            background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['train'],
+            background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['room']['train'],
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
             transform=VideoMatteSpecializedAugmentation(size_lr),
-            max_videomatte_clips=self.args.videomatte_clips)  # valid augmentation is 0 augmentation
+            max_videomatte_clips=self.args.videomatte_clips)
         if self.args.train_hr:
             self.dataset_hr_train = VideoMatteDataset(
                 videomatte_dir=SPECIALIZED_DATA_PATHS['videomatte']['train'],
-                background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['train'],
+                background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['room']['train'],
                 size=self.args.resolution_hr,
                 seq_length=self.args.seq_length_hr,
                 seq_sampler=TrainFrameSampler(),
@@ -189,7 +189,7 @@ class Trainer:
             )
         self.dataset_valid = VideoMatteDataset(
             videomatte_dir=SPECIALIZED_DATA_PATHS['videomatte']['valid'],
-            background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['valid'],
+            background_video_dir=SPECIALIZED_DATA_PATHS['background_video']['room']['valid'],
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
