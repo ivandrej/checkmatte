@@ -25,12 +25,15 @@ Composite a list of foreground, background pairs
 """
 
 
-def composite_fgrs_to_bgrs(clips):
+def composite_fgrs_to_bgrs(base_out_dir, experiment_metadata):
+    os.makedirs(base_out_dir, exist_ok=True)
+
+    clips = read_metadata(experiment_metadata)
     print("Will create {} composed clips".format(len(clips)))
 
     for com_paths in clips:
         print(com_paths.bgr_path)
-        out_dir = os.path.join(args.out_dir, com_paths.clipname)
+        out_dir = os.path.join(base_out_dir, com_paths.clipname)
         print("Creating: ", com_paths.clipname)
         os.makedirs(out_dir, exist_ok=True)
         if com_paths.bgr_path.endswith(".mp4") or com_paths.bgr_path.endswith(".MTS"):  # video background
@@ -102,7 +105,4 @@ if __name__ == "__main__":
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     args = parser.parse_args()
 
-    os.makedirs(os.path.join(args.out_dir), exist_ok=True)
-
-    clips = read_metadata(args.experiment_metadata)
-    composite_fgrs_to_bgrs(clips)
+    composite_fgrs_to_bgrs(args.out_dir, args.experiment_metadata)

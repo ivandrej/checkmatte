@@ -4,16 +4,13 @@ import sys
 import torch
 
 # Need to have RVM locally https://github.com/PeterL1n/RobustVideoMatting
+sys.path.append(os.path.abspath('..'))
+from model import MattingNetwork
+
+
 sys.path.append("/home/andivanov/dev/RobustVideoMatting/")
 from inference import convert_video
 import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--experiment-dir', type=str, required=True)
-parser.add_argument('--output-type', type=str, default='png_sequence', required=False)
-args = parser.parse_args()
-
-model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
 
 """
 Perform inference on all samples in an experiment dir. 
@@ -34,18 +31,24 @@ File structure:
 """
 
 
-def inference_dir():
+def inference(experiment_dir, load_model, output_type="png_sequence"):
+    if load_model == "RVM":
+        model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
+    else:
+        model = MattingNetwork("mobilenetv3").eval().cuda()
+        model.load_state_dict(torch.load(load_model))
+
     # For each sample (directory with frames) in experiment dir
-    for sample_name in sorted(os.listdir(os.path.join(args.experiment_dir, "input"))):
-        out_dir = os.path.join(args.experiment_dir, "out", sample_name)
+    for sample_name in sorted(os.listdir(os.path.join(experiment_dir, "input"))):
+        out_dir = os.path.join(experiment_dir, "out", sample_name)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
         # Save output to video
-        if args.output_type == 'video':
+        if output_type == 'video':
             convert_video(
                 model,  # The loaded model, can be on any device (cpu or cuda).
-                input_source=os.path.join(args.experiment_dir, "input", sample_name),
+                input_source=os.path.join(experiment_dir, "input", sample_name),
                 # A video file or an image sequence directory.
                 input_resize=None,  # [Optional] Resize the input (also the output).
                 downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
@@ -61,7 +64,7 @@ def inference_dir():
         else:  # Save output to image seq
             convert_video(
                 model,  # The loaded model, can be on any device (cpu or cuda).
-                input_source=os.path.join(args.experiment_dir, "input", sample_name),
+                input_source=os.path.join(experiment_dir, "input", sample_name),
                 # A video file or an image sequence directory.
                 input_resize=None,  # [Optional] Resize the input (also the output).
                 downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
@@ -94,4 +97,11 @@ def inference_dir():
 
 
 if __name__ == "__main__":
-    inference_dir()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--experiment-dir', type=str, required=True)
+    parser.add_argument('--load-model', type=str, required=True)
+    parser.add_argument('--output-type', type=str, default='png_sequence', required=False)
+
+    args = parser.parse_args()
+
+    inference(args.experiment_dir, args.load_model, args.output_type)
