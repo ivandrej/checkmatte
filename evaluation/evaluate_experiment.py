@@ -36,10 +36,14 @@ def parse_args():
     return parser.parse_args()
 
 
-
 class Evaluator:
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, pred_dir, experiment_metadata, metrics, num_workers, resize):
+        # self.args = args
+        self.experiment_metadata = experiment_metadata
+        self.pred_dir = pred_dir
+        self.metrics = metrics
+        self.num_workers = num_workers
+        self.resize = resize
         self.init_metrics()
         self.evaluate()
         # self.write_excel()
@@ -54,8 +58,8 @@ class Evaluator:
     def evaluate(self):
         tasks = []
 
-        clips = composite.read_metadata(args.experiment_metadata)
-        with ThreadPoolExecutor(max_workers=self.args.num_workers) as executor:
+        clips = composite.read_metadata(self.experiment_metadata)
+        with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
             for clip in clips:
                 future = executor.submit(self.evaluate_worker_img_seq, clip.bgr_type, clip)
                 tasks.append((clip.bgr_type, clip, future))
@@ -90,25 +94,25 @@ class Evaluator:
         df.loc["semi_dynamic_mean"] = df.loc[df.bgr_type == "semi_dynamic"].mean()
         df.loc["static_mean"] = df.loc[df.bgr_type == "static"].mean()
 
-        df.to_csv(os.path.join(self.args.pred_dir, "metrics.csv"), index_label="clipname")
+        df.to_csv(os.path.join(self.pred_dir, "metrics.csv"), index_label="clipname")
 
         # A column for each frame
         pha_mad_columns = list(range(max_num_frames))
         df_pha_mad = pd.DataFrame.from_dict(pha_mad_dict, orient="index", columns=pha_mad_columns)
-        df_pha_mad.to_csv(os.path.join(self.args.pred_dir, "pha_mad.csv"), index_label="clipname")
+        df_pha_mad.to_csv(os.path.join(self.pred_dir, "pha_mad.csv"), index_label="clipname")
 
     def evaluate_worker(self, dataset, clip: composite.CompositedClipPaths):
         print("Clip: ", clip.clipname)
         true_fgr_frames = pims.PyAVVideoReader(clip.fgr_path)
         true_pha_frames = pims.PyAVVideoReader(clip.pha_path)
 
-        pred_fgr_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip.clipname, "fgr.mp4"))
-        pred_pha_frames = pims.PyAVVideoReader(os.path.join(self.args.pred_dir, clip.clipname, "pha.mp4"))
+        pred_fgr_frames = pims.PyAVVideoReader(os.path.join(self.pred_dir, clip.clipname, "fgr.mp4"))
+        pred_pha_frames = pims.PyAVVideoReader(os.path.join(self.pred_dir, clip.clipname, "pha.mp4"))
 
         assert (len(true_fgr_frames) == len(true_pha_frames))
         assert (len(pred_fgr_frames) == len(pred_pha_frames))
 
-        metrics = {metric_name: [] for metric_name in self.args.metrics}
+        metrics = {metric_name: [] for metric_name in self.metrics}
 
         pred_pha_tm1 = None
         true_pha_tm1 = None
@@ -120,15 +124,15 @@ class Evaluator:
 
             # print(pred_pha.shape, true_pha.shape)
             assert (true_pha.shape == pred_pha.shape)
-            if 'pha_mad' in self.args.metrics:
+            if 'pha_mad' in self.metrics:
                 metrics['pha_mad'].append(self.mad(pred_pha, true_pha))
-            if 'pha_mse' in self.args.metrics:
+            if 'pha_mse' in self.metrics:
                 metrics['pha_mse'].append(self.mse(pred_pha, true_pha))
-            if 'pha_grad' in self.args.metrics:
+            if 'pha_grad' in self.metrics:
                 metrics['pha_grad'].append(self.grad(pred_pha, true_pha))
-            if 'pha_conn' in self.args.metrics:
+            if 'pha_conn' in self.metrics:
                 metrics['pha_conn'].append(self.conn(pred_pha, true_pha))
-            if 'pha_dtssd' in self.args.metrics:
+            if 'pha_dtssd' in self.metrics:
                 if t == 0:
                     metrics['pha_dtssd'].append(0)
                 else:
@@ -137,25 +141,25 @@ class Evaluator:
             pred_pha_tm1 = pred_pha
             true_pha_tm1 = true_pha
 
-            if 'fgr_mse' in self.args.metrics or 'fgr_mda' in self.args.metrics:
+            if 'fgr_mse' in self.metrics or 'fgr_mda' in self.metrics:
                 pred_fgr = video_frame_to_torch(pred_fgr_frames[t])
                 true_fgr = video_frame_to_torch(true_fgr_frames[t], resize=args.resize)
                 true_msk = true_pha > 0
 
-                if 'fgr_mse' in self.args.metrics:
+                if 'fgr_mse' in self.metrics:
                     metrics['fgr_mse'].append(self.mse(pred_fgr[true_msk], true_fgr[true_msk]))
-                if 'fgr_mad' in self.args.metrics:
+                if 'fgr_mad' in self.metrics:
                     metrics['fgr_mad'].append(self.mad(pred_fgr[true_msk], true_fgr[true_msk]))
 
         return metrics
 
     def evaluate_worker_img_seq(self, dataset, clip: composite.CompositedClipPaths):
         print("Clip: ", clip.clipname)
-        framenames = sorted(os.listdir(os.path.join(self.args.pred_dir, clip.clipname, "pha")))
+        framenames = sorted(os.listdir(os.path.join(self.pred_dir, clip.clipname, "pha")))
         # remove extension from framename, e.g "00000.png" --> "00000"
         framenames = [name.split('.')[0] for name in framenames]
 
-        metrics = {metric_name: [] for metric_name in self.args.metrics}
+        metrics = {metric_name: [] for metric_name in self.metrics}
 
         pred_pha_tm1 = None
         true_pha_tm1 = None
@@ -163,21 +167,21 @@ class Evaluator:
         for t, framename in enumerate(tqdm(framenames, desc=f'{clip.clipname}', dynamic_ncols=True)):
             true_pha = torch.from_numpy(
                 np.asarray(cv2.resize(cv2.imread(os.path.join(clip.pha_path, "0" + framename + ".jpg"),
-                                                 cv2.IMREAD_GRAYSCALE), tuple(self.args.resize)))).float().div_(255)
+                                                 cv2.IMREAD_GRAYSCALE), tuple(self.resize)))).float().div_(255)
             pred_pha = torch.from_numpy(
-                np.asarray(cv2.imread(os.path.join(self.args.pred_dir, clip.clipname, 'pha', framename + ".png"),
+                np.asarray(cv2.imread(os.path.join(self.pred_dir, clip.clipname, 'pha', framename + ".png"),
                                       cv2.IMREAD_GRAYSCALE))).float().div_(255)
 
             assert (true_pha.shape == pred_pha.shape)
-            if 'pha_mad' in self.args.metrics:
+            if 'pha_mad' in self.metrics:
                 metrics['pha_mad'].append(self.mad(pred_pha, true_pha))
-            if 'pha_mse' in self.args.metrics:
+            if 'pha_mse' in self.metrics:
                 metrics['pha_mse'].append(self.mse(pred_pha, true_pha))
-            if 'pha_grad' in self.args.metrics:
+            if 'pha_grad' in self.metrics:
                 metrics['pha_grad'].append(self.grad(pred_pha, true_pha))
-            if 'pha_conn' in self.args.metrics:
+            if 'pha_conn' in self.metrics:
                 metrics['pha_conn'].append(self.conn(pred_pha, true_pha))
-            if 'pha_dtssd' in self.args.metrics:
+            if 'pha_dtssd' in self.metrics:
                 if t == 0:
                     metrics['pha_dtssd'].append(0)
                 else:
@@ -186,18 +190,18 @@ class Evaluator:
             pred_pha_tm1 = pred_pha
             true_pha_tm1 = true_pha
 
-            if 'fgr_mse' in self.args.metrics or 'fgr_mda' in self.args.metrics:
+            if 'fgr_mse' in self.metrics or 'fgr_mda' in self.metrics:
                 true_fgr = torch.from_numpy(
                     np.asarray(cv2.resize(cv2.imread(os.path.join(clip.pha_path, "0" + framename + ".jpg"),
-                                                     cv2.IMREAD_COLOR), tuple(self.args.resize)))).float().div_(255)
+                                                     cv2.IMREAD_COLOR), tuple(self.resize)))).float().div_(255)
                 pred_fgr = torch.from_numpy(
-                    np.asarray(cv2.imread(os.path.join(self.args.pred_dir, clip.clipname, 'fgr', framename + ".png"),
+                    np.asarray(cv2.imread(os.path.join(self.pred_dir, clip.clipname, 'fgr', framename + ".png"),
                                           cv2.IMREAD_COLOR))).float().div_(255)
                 true_msk = true_pha > 0
 
-                if 'fgr_mse' in self.args.metrics:
+                if 'fgr_mse' in self.metrics:
                     metrics['fgr_mse'].append(self.mse(pred_fgr[true_msk], true_fgr[true_msk]))
-                if 'fgr_mad' in self.args.metrics:
+                if 'fgr_mad' in self.metrics:
                     metrics['fgr_mad'].append(self.mad(pred_fgr[true_msk], true_fgr[true_msk]))
 
         return metrics
@@ -219,4 +223,5 @@ if __name__ == '__main__':
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         warnings.warn("deprecated", DeprecationWarning)
-        Evaluator(args)
+        Evaluator(args.pred_dir, args.experiment_metadata, args.metrics,
+                  args.num_workers, args.resize)

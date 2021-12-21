@@ -101,7 +101,6 @@ if __name__ == "__main__":
     parser.add_argument('--experiment-dir', type=str, required=True)
     parser.add_argument('--load-model', type=str, required=True)
     parser.add_argument('--output-type', type=str, default='png_sequence', required=False)
-
     args = parser.parse_args()
 
     inference(args.experiment_dir, args.load_model, args.output_type)
