@@ -56,16 +56,21 @@ class MotionAugmentation:
         bgrs = torch.stack([F.to_tensor(bgr) for bgr in bgrs])
 
         # Resize
-        if self.random_sized_crop:
+        if self.random_sized_crop:  # random crop of a square of size (self.size, self.size)
+            square_size = (self.size, self.size)
             params = transforms.RandomResizedCrop.get_params(fgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
-            fgrs = F.resized_crop(fgrs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
-            phas = F.resized_crop(phas, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            fgrs = F.resized_crop(fgrs, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
+            phas = F.resized_crop(phas, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
             params = transforms.RandomResizedCrop.get_params(bgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
-            bgrs = F.resized_crop(bgrs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
-        else:
-            fgrs = F.resize(fgrs, self.size, interpolation=F.InterpolationMode.BILINEAR)
-            phas = F.resize(phas, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            bgrs = F.resized_crop(bgrs, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
+        else:  # resize such that smaller side has self.size
             bgrs = F.resize(bgrs, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            h, w = bgrs.shape[-2:]
+
+            # Match size of fgrs to bgrs. Most fgrs are 432 x 768 - the standard aspect ratio of 16:9. A few are
+            # 405 x 768, so we have to match the size to the bgr like this so they are the same size after resizing.
+            fgrs = F.resize(fgrs, (h, w), interpolation=F.InterpolationMode.BILINEAR)
+            phas = F.resize(phas, (h, w), interpolation=F.InterpolationMode.BILINEAR)
 
         # Horizontal flip
         if random.random() < self.prob_hflip:

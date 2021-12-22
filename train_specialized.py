@@ -175,7 +175,7 @@ class Trainer:
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMatteSpecializedAugmentation(size_lr),
+            transform=VideoMatteSpecializedAugmentation(self.args.resolution_lr),
             max_videomatte_clips=self.args.videomatte_clips)
         if self.args.train_hr:
             self.dataset_hr_train = VideoMatteDataset(
@@ -193,7 +193,7 @@ class Trainer:
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMatteSpecializedAugmentation(size_hr if self.args.train_hr else size_lr))
+            transform=VideoMatteSpecializedAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
 
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
@@ -263,7 +263,6 @@ class Trainer:
             for true_fgr, true_pha, true_bgr in tqdm(self.dataloader_lr_train, disable=self.args.disable_progress_bar,
                                                      dynamic_ncols=True):
                 # Low resolution pass
-                # print("True pha shape", true_pha.shape)
                 self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=1, tag='lr')
 
                 # High resolution pass
@@ -281,9 +280,12 @@ class Trainer:
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
         true_bgr = true_bgr.to(self.rank, non_blocking=True)
-        # Remove comment for random cropping of composited images
+        # Uncomment for random cropping of composited images
         # true_fgr, true_pha, true_bgr = self.random_crop(true_fgr, true_pha, true_bgr)
         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+
+        if self.step == 0:
+            print("Training batch shape: ", true_src.shape)
 
         with autocast(enabled=not self.args.disable_mixed_precision):
             pred_fgr, pred_pha = self.model_ddp(true_src, downsample_ratio=downsample_ratio)[:2]
@@ -333,6 +335,9 @@ class Trainer:
                         true_pha = true_pha.to(self.rank, non_blocking=True)
                         true_bgr = true_bgr.to(self.rank, non_blocking=True)
                         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+                        if self.step == 0 and total_count == 0:  # only print once
+                            print("Validation batch shape: ", true_src.shape)
+
                         batch_size = true_src.size(0)
                         pred_fgr, pred_pha = self.model(true_src)[:2]
                         total_loss += matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)['total'].item() * batch_size
