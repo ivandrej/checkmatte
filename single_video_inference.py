@@ -19,6 +19,7 @@ parser.add_argument('--input-source', type=str, required=True)
 parser.add_argument('--out-dir', type=str, required=True)
 parser.add_argument('--video-name', type=str, required=True)
 parser.add_argument('--load-model', type=str, required=True)
+parser.add_argument('--output-type', type=str, default='video', required=False)
 parser.add_argument('--resize', type=int, default=(512, 288), nargs=2)
 args = parser.parse_args()
 
@@ -31,20 +32,37 @@ else:
 if not os.path.exists(args.out_dir):
     os.makedirs(args.out_dir)
 
-convert_video(
-    model,  # The loaded model, can be on any device (cpu or cuda).
-    # input_source=f"/home/andivanov/Videos/{args.video_name}.mp4",        # A video file or an image sequence directory.
-    input_source=args.input_source,
-    input_resize=args.resize,  # [Optional] Resize the input (also the output).
-    downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
-    output_type='video',  # Choose "video" or "png_sequence"
-    output_composition=f"{args.out_dir}/{args.video_name}_com.mp4",
-    # File path if video; directory path if png sequence.
-    output_alpha=f"{args.out_dir}/{args.video_name}_pha.mp4",  # [Optional] Output the raw alpha prediction.
-    output_foreground=f"{args.out_dir}/{args.video_name}_fgr.mp4",
-    # [Optional] Output the raw foreground prediction.
-    output_video_mbps=4,  # Output video mbps. Not needed for png sequence.
-    seq_chunk=12,  # Process n frames at once for better parallelism.
-    num_workers=1,  # Only for image sequence input. Reader threads.
-    progress=True  # Print conversion progress.
-)
+if args.output_type == 'video':
+    convert_video(
+        model,  # The loaded model, can be on any device (cpu or cuda).
+        # input_source=f"/home/andivanov/Videos/{args.video_name}.mp4",        # A video file or an image sequence directory.
+        input_source=args.input_source,
+        input_resize=args.resize,  # [Optional] Resize the input (also the output).
+        downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
+        output_type='video',  # Choose "video" or "png_sequence"
+        output_composition=f"{args.out_dir}/{args.video_name}_com.mp4",
+        # File path if video; directory path if png sequence.
+        output_alpha=f"{args.out_dir}/{args.video_name}_pha.mp4",  # [Optional] Output the raw alpha prediction.
+        output_foreground=f"{args.out_dir}/{args.video_name}_fgr.mp4",
+        # [Optional] Output the raw foreground prediction.
+        output_video_mbps=4,  # Output video mbps. Not needed for png sequence.
+        seq_chunk=12,  # Process n frames at once for better parallelism.
+        num_workers=1,  # Only for image sequence input. Reader threads.
+        progress=True  # Print conversion progress.
+    )
+else:  # save as png seq
+    print("Outputting as png seq")
+    convert_video(
+        model,  # The loaded model, can be on any device (cpu or cuda).
+        input_source=args.input_source,
+        input_resize=args.resize,  # [Optional] Resize the input (also the output).
+        downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
+        output_type="png_sequence",  # Choose "video" or "png_sequence"
+        output_composition=f"{args.out_dir}/{args.video_name}_com",
+        output_alpha=f"{args.out_dir}/{args.video_name}_pha",  # [Optional] Output the raw alpha prediction.
+        output_foreground=f"{args.out_dir}/{args.video_name}_fgr",
+        # [Optional] Output the raw foreground prediction.
+        seq_chunk=12,  # Process n frames at once for better parallelism.
+        progress=True  # Print conversion progress.
+    )
+

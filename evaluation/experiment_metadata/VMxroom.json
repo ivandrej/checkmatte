@@ -1,0 +1,21 @@
+{
+    "bgr_paths": {
+        "semi_dynamic": [
+            "/media/andivanov/DATA/dynamic_backgrounds_captured/room_1.mp4"
+        ]
+    },
+    "fgr_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0004",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0003",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0002",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0001",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0000"
+    ],
+    "pha_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0004",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0003",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0002",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0001",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0000"
+    ]
+}
