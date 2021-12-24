@@ -97,7 +97,7 @@ from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
 from dataset.videomatte import (
     VideoMatteDataset,
     VideoMatteTrainAugmentation,
-    VideoMatteValidAugmentation, VideoMatteSpecializedAugmentation,
+    VideoMatteValidAugmentation, VideoMatteSpecializedNoAugmentation, VideoMatteSpecializedAugmentation,
 )
 
 from model import MattingNetwork
@@ -193,7 +193,7 @@ class Trainer:
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMatteSpecializedAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
+            transform=VideoMatteSpecializedNoAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
 
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(

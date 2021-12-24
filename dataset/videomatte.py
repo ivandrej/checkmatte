@@ -145,7 +145,7 @@ class VideoMatteValidAugmentation(MotionAugmentation):
         )
 
 
-class VideoMatteSpecializedAugmentation(MotionAugmentation):
+class VideoMatteSpecializedNoAugmentation(MotionAugmentation):
     def __init__(self, size):
         super().__init__(
             size=size,
@@ -159,5 +159,23 @@ class VideoMatteSpecializedAugmentation(MotionAugmentation):
             prob_hflip=0,
             prob_pause=0,
             static_affine=False,
+            random_sized_crop=False
+        )
+
+
+class VideoMatteSpecializedAugmentation(MotionAugmentation):
+    def __init__(self, size):
+        super().__init__(
+            size=size,
+            prob_fgr_affine=0.3,
+            prob_bgr_affine=0.3,
+            prob_noise=0.1,
+            prob_color_jitter=0.3,
+            prob_grayscale=0.02,
+            prob_sharpness=0.1,
+            prob_blur=0.02,
+            prob_hflip=0,
+            prob_pause=0.03,
+            static_affine=True,
             random_sized_crop=False
         )
