@@ -237,6 +237,11 @@ class Trainer:
             pin_memory=True)
 
         if self.args.varied_every_n_steps:
+            self.dataloader_varied_train = DataLoader(
+                dataset=self.dataset_varied_train,
+                batch_size=self.args.batch_size_per_gpu,
+                num_workers=self.args.num_workers,
+                pin_memory=True)
             self.datasampler_varied_train = DistributedSampler(
                 dataset=self.dataset_varied_train,
                 rank=self.rank,
@@ -348,7 +353,7 @@ class Trainer:
             sample = next(self.dataiterator_mat_varied)
         except:
             self.datasampler_varied_train.set_epoch(self.datasampler_varied_train.epoch + 1)
-            self.dataiterator_mat_varied = iter(self.dataloader_hr_train)
+            self.dataiterator_mat_varied = iter(self.dataloader_varied_train)
             sample = next(self.dataiterator_mat_varied)
         return sample
 
