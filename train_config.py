@@ -57,7 +57,9 @@ SPECIALIZED_DATA_PATHS = {
             'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/room/train',
             'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/room/valid'
         }
-        # 'train': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/train',
-        # 'valid': '/media/andivanov/DATA/training_datasets/specialized_iteration_1/valid',
+    },
+    'DVM': {
+        'train': '/media/andivanov/DATA/DVM_JPEG_nohuman/train',
+        'valid': '/media/andivanov/DATA/DVM_JPEG_nohuman/valid',
     }
 }

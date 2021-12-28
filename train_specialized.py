@@ -129,6 +129,7 @@ class Trainer:
         parser.add_argument('--learning-rate-refiner', type=float, required=True)
         # Training setting
         parser.add_argument('--train-hr', action='store_true')
+        parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
         parser.add_argument('--seq-length-lr', type=int, required=True)
@@ -195,6 +196,16 @@ class Trainer:
             seq_sampler=ValidFrameSampler(),
             transform=VideoMatteSpecializedNoAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
 
+        if self.args.varied_every_n_steps:
+            self.dataset_varied_train = VideoMatteDataset(
+                videomatte_dir=SPECIALIZED_DATA_PATHS['videomatte']['train'],
+                background_video_dir=SPECIALIZED_DATA_PATHS['DVM']['train'],
+                size=self.args.resolution_lr,
+                seq_length=self.args.seq_length_lr,
+                seq_sampler=TrainFrameSampler(),
+                transform=VideoMatteSpecializedAugmentation(self.args.resolution_lr),
+                max_videomatte_clips=self.args.videomatte_clips)
+
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
             dataset=self.dataset_lr_train,
@@ -224,6 +235,13 @@ class Trainer:
             batch_size=self.args.batch_size_per_gpu,
             num_workers=self.args.num_workers,
             pin_memory=True)
+
+        if self.args.varied_every_n_steps:
+            self.datasampler_varied_train = DistributedSampler(
+                dataset=self.dataset_varied_train,
+                rank=self.rank,
+                num_replicas=self.world_size,
+                shuffle=True)
 
     def init_model(self):
         self.log('Initializing model')
@@ -269,6 +287,10 @@ class Trainer:
                 if self.args.train_hr:
                     true_fgr, true_pha, true_bgr = self.load_next_mat_hr_sample()
                     self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=self.args.downsample_ratio, tag='hr')
+
+                if self.args.varied_every_n_steps and self.step % self.args.varied_every_n_steps == 0:
+                    true_fgr, true_pha, true_bgr = self.load_next_varied_bgr_sample()
+                    self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=1, tag='lr_varied')
 
                 if self.step % self.args.checkpoint_save_interval == 0:
                     self.save()
@@ -319,6 +341,15 @@ class Trainer:
             self.datasampler_hr_train.set_epoch(self.datasampler_hr_train.epoch + 1)
             self.dataiterator_mat_hr = iter(self.dataloader_hr_train)
             sample = next(self.dataiterator_mat_hr)
+        return sample
+
+    def load_next_varied_bgr_sample(self):
+        try:
+            sample = next(self.dataiterator_mat_varied)
+        except:
+            self.datasampler_varied_train.set_epoch(self.datasampler_varied_train.epoch + 1)
+            self.dataiterator_mat_varied = iter(self.dataloader_hr_train)
+            sample = next(self.dataiterator_mat_varied)
         return sample
 
     def validate(self):
