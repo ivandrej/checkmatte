@@ -99,6 +99,7 @@ from dataset.videomatte import (
     VideoMatteTrainAugmentation,
     VideoMatteValidAugmentation, VideoMatteSpecializedNoAugmentation, VideoMatteSpecializedAugmentation,
 )
+from dataset.youtubevis import YouTubeVISDataset, YouTubeVISAugmentation
 
 from model import MattingNetwork
 from train_config import RVM_DATA_PATHS, SPECIALIZED_DATA_PATHS
@@ -130,6 +131,7 @@ class Trainer:
         # Training setting
         parser.add_argument('--train-hr', action='store_true')
         parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
+        parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
         parser.add_argument('--seq-length-lr', type=int, required=True)
@@ -248,6 +250,27 @@ class Trainer:
                 num_replicas=self.world_size,
                 shuffle=True)
 
+        self.log('Initializing video segmentation datasets')
+        if self.args.seg_every_n_steps:
+            self.dataset_seg_video = YouTubeVISDataset(
+                videodir=SPECIALIZED_DATA_PATHS['youtubevis']['videodir'],
+                annfile=SPECIALIZED_DATA_PATHS['youtubevis']['annfile'],
+                size=self.args.resolution_lr,
+                seq_length=self.args.seq_length_lr,
+                seq_sampler=TrainFrameSampler(speed=[1]),
+                transform=YouTubeVISAugmentation(size_lr))
+            self.datasampler_seg_video = DistributedSampler(
+                dataset=self.dataset_seg_video,
+                rank=self.rank,
+                num_replicas=self.world_size,
+                shuffle=True)
+            self.dataloader_seg_video = DataLoader(
+                dataset=self.dataset_seg_video,
+                batch_size=self.args.batch_size_per_gpu,
+                num_workers=self.args.num_workers,
+                sampler=self.datasampler_seg_video,
+                pin_memory=True)
+
     def init_model(self):
         self.log('Initializing model')
         # self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
@@ -297,6 +320,11 @@ class Trainer:
                     true_fgr, true_pha, true_bgr = self.load_next_varied_bgr_sample()
                     self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=1, tag='lr_varied')
 
+                if self.args.seg_every_n_steps and self.step % self.args.seg_every_n_steps == 0:
+                    true_img, true_seg = self.load_next_seg_video_sample()
+                    print("Seg img shape: ", true_img.shape)
+                    self.train_seg(true_img, true_seg, log_label='seg_video')
+
                 if self.step % self.args.checkpoint_save_interval == 0:
                     self.save()
 
@@ -339,6 +367,33 @@ class Trainer:
             self.writer.add_image(f'train_{tag}_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
                                   self.step)
 
+    def train_seg(self, true_img, true_seg, log_label):
+        true_img = true_img.to(self.rank, non_blocking=True)
+        true_seg = true_seg.to(self.rank, non_blocking=True)
+
+        true_img, true_seg = self.random_crop(true_img, true_seg)
+
+        with autocast(enabled=not self.args.disable_mixed_precision):
+            pred_seg = self.model_ddp(true_img, segmentation_pass=True)[0]
+            loss = segmentation_loss(pred_seg, true_seg)
+
+        self.scaler.scale(loss).backward()
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+        self.optimizer.zero_grad()
+
+        if self.rank == 0 and (self.step - self.step % 2) % self.args.log_train_loss_interval == 0:
+            self.writer.add_scalar(f'{log_label}_loss', loss, self.step)
+
+        if self.rank == 0 and (self.step - self.step % 2) % self.args.log_train_images_interval == 0:
+            self.writer.add_image(f'{log_label}_pred_seg',
+                                  make_grid(pred_seg.flatten(0, 1).float().sigmoid(), nrow=self.args.seq_length_lr),
+                                  self.step)
+            self.writer.add_image(f'{log_label}_true_seg',
+                                  make_grid(true_seg.flatten(0, 1), nrow=self.args.seq_length_lr), self.step)
+            self.writer.add_image(f'{log_label}_true_img',
+                                  make_grid(true_img.flatten(0, 1), nrow=self.args.seq_length_lr), self.step)
+
     def load_next_mat_hr_sample(self):
         try:
             sample = next(self.dataiterator_mat_hr)
@@ -355,6 +410,15 @@ class Trainer:
             self.datasampler_varied_train.set_epoch(self.datasampler_varied_train.epoch + 1)
             self.dataiterator_mat_varied = iter(self.dataloader_varied_train)
             sample = next(self.dataiterator_mat_varied)
+        return sample
+
+    def load_next_seg_video_sample(self):
+        try:
+            sample = next(self.dataiterator_seg_video)
+        except:
+            self.datasampler_seg_video.set_epoch(self.datasampler_seg_video.epoch + 1)
+            self.dataiterator_seg_video = iter(self.dataloader_seg_video)
+            sample = next(self.dataiterator_seg_video)
         return sample
 
     def validate(self):

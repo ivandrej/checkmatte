@@ -61,5 +61,9 @@ SPECIALIZED_DATA_PATHS = {
     'DVM': {
         'train': '/media/andivanov/DATA/DVM_JPEG_nohuman/train',
         'valid': '/media/andivanov/DATA/DVM_JPEG_nohuman/valid',
+    },
+    'youtubevis': {
+        'videodir': '/media/andivanov/DATA/YouTubeVIS/train/JPEGImages',
+        'annfile': '/media/andivanov/DATA/YouTubeVIS/train/instances.json',
     }
 }
