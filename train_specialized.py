@@ -258,7 +258,7 @@ class Trainer:
                 size=self.args.resolution_lr,
                 seq_length=self.args.seq_length_lr,
                 seq_sampler=TrainFrameSampler(speed=[1]),
-                transform=YouTubeVISAugmentation(size_lr))
+                transform=YouTubeVISAugmentation(self.args.resolution_lr))
             self.datasampler_seg_video = DistributedSampler(
                 dataset=self.dataset_seg_video,
                 rank=self.rank,
@@ -322,7 +322,6 @@ class Trainer:
 
                 if self.args.seg_every_n_steps and self.step % self.args.seg_every_n_steps == 0:
                     true_img, true_seg = self.load_next_seg_video_sample()
-                    print("Seg img shape: ", true_img.shape)
                     self.train_seg(true_img, true_seg, log_label='seg_video')
 
                 if self.step % self.args.checkpoint_save_interval == 0:
@@ -371,7 +370,9 @@ class Trainer:
         true_img = true_img.to(self.rank, non_blocking=True)
         true_seg = true_seg.to(self.rank, non_blocking=True)
 
-        true_img, true_seg = self.random_crop(true_img, true_seg)
+        # true_img, true_seg = self.random_crop(true_img, true_seg)
+        if self.step == 0:
+            print("Segmentation batch size: ", true_seg.shape)
 
         with autocast(enabled=not self.args.disable_mixed_precision):
             pred_seg = self.model_ddp(true_img, segmentation_pass=True)[0]

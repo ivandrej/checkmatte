@@ -104,10 +104,8 @@ class YouTubeVISAugmentation:
         segs = torch.stack([F.to_tensor(seg) for seg in segs])
 
         # Resize
-        # TODO: Cut out rectangles instead like in VideoMatte
-        params = transforms.RandomResizedCrop.get_params(imgs, scale=(0.8, 1), ratio=(0.9, 1.1))
-        imgs = F.resized_crop(imgs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
-        segs = F.resized_crop(segs, *params, self.size, interpolation=F.InterpolationMode.BILINEAR)
+        imgs = F.resize(imgs, self.size, interpolation=F.InterpolationMode.BILINEAR)
+        segs = F.resize(segs, self.size, interpolation=F.InterpolationMode.BILINEAR)
 
         # Color jitter
         imgs = self.jitter(imgs)
