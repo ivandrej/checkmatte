@@ -219,7 +219,7 @@ class Trainer:
             # TODO: Add pre-captured bgr
             for true_fgr, true_pha, true_bgr, precaptured_bgr in \
                     tqdm(self.dataloader_lr_train, disable=self.args.disable_progress_bar, dynamic_ncols=True):
-                self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=1, tag='lr')
+                self.train_mat(true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio=1, tag='lr')
 
                 if self.args.seg_every_n_steps and self.step % self.args.seg_every_n_steps == 0:
                     true_img, true_seg = self.load_next_seg_video_sample()
@@ -231,7 +231,7 @@ class Trainer:
                 self.step += 1
                 # print("Step: ", self.step)
 
-    def train_mat(self, true_fgr, true_pha, true_bgr, downsample_ratio, tag):
+    def train_mat(self, true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
         true_bgr = true_bgr.to(self.rank, non_blocking=True)
@@ -265,6 +265,9 @@ class Trainer:
             self.writer.add_image(f'train_{tag}_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
                                   self.step)
             self.writer.add_image(f'train_{tag}_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
+                                  self.step)
+            self.writer.add_image(f'train_{tag}_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
+                                                                            nrow=precaptured_bgr.size(1)),
                                   self.step)
 
     def train_seg(self, true_img, true_seg, log_label):
