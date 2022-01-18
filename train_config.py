@@ -67,3 +67,14 @@ SPECIALIZED_DATA_PATHS = {
         'annfile': '/media/andivanov/DATA/YouTubeVIS/train/instances.json',
     }
 }
+
+BGR_FRAME_DATA_PATHS = {
+    'videomatte': {
+        'train': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD/train',
+        'valid': '/media/andivanov/DATA/VideoMatte240K_JPEG_SD/valid',
+    },
+    'DVM': {
+        'train': '/media/andivanov/DATA/DVM_JPEG_nohuman/train',
+        'valid': '/media/andivanov/DATA/DVM_JPEG_nohuman/valid',
+    }
+}
