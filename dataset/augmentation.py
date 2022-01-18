@@ -115,14 +115,16 @@ class MotionAugmentation:
         
         return fgrs, phas, bgrs
     
-    def _static_affine(self, *imgs, scale_ranges):
+    @staticmethod
+    def _static_affine(*imgs, scale_ranges):
         params = transforms.RandomAffine.get_params(
             degrees=(-10, 10), translate=(0.1, 0.1), scale_ranges=scale_ranges,
             shears=(-5, 5), img_size=imgs[0][0].size)
         imgs = [[F.affine(t, *params, F.InterpolationMode.BILINEAR) for t in img] for img in imgs]
         return imgs if len(imgs) > 1 else imgs[0] 
     
-    def _motion_affine(self, *imgs):
+    @staticmethod
+    def _motion_affine(*imgs):
         config = dict(degrees=(-10, 10), translate=(0.1, 0.1),
                       scale_ranges=(0.9, 1.1), shears=(-5, 5), img_size=imgs[0][0].size)
         angleA, (transXA, transYA), scaleA, (shearXA, shearYA) = transforms.RandomAffine.get_params(**config)
@@ -141,8 +143,9 @@ class MotionAugmentation:
             for img in imgs:
                 img[t] = F.affine(img[t], angle, (transX, transY), scale, (shearX, shearY), F.InterpolationMode.BILINEAR)
         return imgs if len(imgs) > 1 else imgs[0]
-    
-    def _motion_noise(self, *imgs):
+
+    @staticmethod
+    def _motion_noise(*imgs):
         grain_size = random.random() * 3 + 1 # range 1 ~ 4
         monochrome = random.random() < 0.5
         for img in imgs:
@@ -153,8 +156,9 @@ class MotionAugmentation:
                 noise = F.resize(noise, (H, W))
             img.add_(noise).clamp_(0, 1)
         return imgs if len(imgs) > 1 else imgs[0]
-    
-    def _motion_color_jitter(self, *imgs):
+
+    @staticmethod
+    def _motion_color_jitter(*imgs):
         brightnessA, brightnessB, contrastA, contrastB, saturationA, saturationB, hueA, hueB \
             = torch.randn(8).mul(0.1).tolist()
         strength = random.random() * 0.2
@@ -169,7 +173,8 @@ class MotionAugmentation:
                 img[t] = F.adjust_hue(img[t], min(0.5, max(-0.5, lerp(hueA, hueB, percentage) * 0.1)))
         return imgs if len(imgs) > 1 else imgs[0]
     
-    def _motion_blur(self, *imgs):
+    @staticmethod
+    def _motion_blur(*imgs):
         blurA = random.random() * 10
         blurB = random.random() * 10
 
