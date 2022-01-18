@@ -3,6 +3,7 @@ import random
 
 from PIL import Image
 
+from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation
 from dataset.videomatte import VideoMatteDataset
 
 """
@@ -14,7 +15,7 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
 
         fgrs, phas = self._get_videomatte(idx)
 
-        return self.transform(fgrs, phas, bgrs)
+        return self.transform(fgrs, phas, bgrs, precaptured_bgrs)
 
     def _get_random_video_background(self):
         clip_idx = random.choice(range(len(self.background_video_clips)))
@@ -46,3 +47,35 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
             return -50
         else:
             return 50
+
+
+class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAugmentation):
+    def __init__(self, size):
+        super().__init__(
+            size=size,
+            prob_fgr_affine=0.3,
+            prob_bgr_affine=0.3,
+            prob_noise=0.1,
+            prob_color_jitter=0.3,
+            prob_grayscale=0.02,
+            prob_sharpness=0.1,
+            prob_blur=0.02,
+            prob_hflip=0.5,
+            prob_pause=0.03,
+        )
+
+
+class VideoMattePrecapturedBgrValidAugmentation(PrecapturedBgrAugmentation):
+    def __init__(self, size):
+        super().__init__(
+            size=size,
+            prob_fgr_affine=0,
+            prob_bgr_affine=0,
+            prob_noise=0,
+            prob_color_jitter=0,
+            prob_grayscale=0,
+            prob_sharpness=0,
+            prob_blur=0,
+            prob_hflip=0,
+            prob_pause=0,
+        )

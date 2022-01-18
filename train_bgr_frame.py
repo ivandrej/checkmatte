@@ -20,12 +20,14 @@ from torchvision.transforms.functional import center_crop
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
+from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation
 from dataset.videomatte import (
     VideoMatteDataset,
     VideoMatteTrainAugmentation,
     VideoMatteValidAugmentation, VideoMatteSpecializedNoAugmentation, VideoMatteSpecializedAugmentation,
 )
-from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset
+from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
+    VideoMattePrecapturedBgrValidAugmentation
 from dataset.youtubevis import YouTubeVISDataset, YouTubeVISAugmentation
 
 from model import MattingNetwork
@@ -105,18 +107,18 @@ class Trainer:
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMatteSpecializedAugmentation(self.args.resolution_lr),
+            transform=VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr),
             max_videomatte_clips=self.args.videomatte_clips)
-        if self.args.train_hr:
-            self.dataset_hr_train = VideoMattePrecapturedBgrDataset(
-                videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['train'],
-                background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['train'],
-                size=self.args.resolution_hr,
-                seq_length=self.args.seq_length_hr,
-                seq_sampler=TrainFrameSampler(),
-                transform=VideoMatteSpecializedAugmentation(size_hr),
-                max_videomatte_clips=self.args.videomatte_clips
-            )
+        # if self.args.train_hr:
+        #     self.dataset_hr_train = VideoMattePrecapturedBgrDataset(
+        #         videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['train'],
+        #         background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['train'],
+        #         size=self.args.resolution_hr,
+        #         seq_length=self.args.seq_length_hr,
+        #         seq_sampler=TrainFrameSampler(),
+        #         transform=VideoMattePrecapturedBgrTrainAugmentation(size_hr),
+        #         max_videomatte_clips=self.args.videomatte_clips
+        #     )
         self.dataset_valid = VideoMattePrecapturedBgrDataset(
             videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
             background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['valid'],
@@ -124,7 +126,7 @@ class Trainer:
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             # TODO: Remove temporal augmentations
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMatteSpecializedNoAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
+            transform=VideoMattePrecapturedBgrValidAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
 
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
@@ -215,7 +217,7 @@ class Trainer:
             print("Step at start of this epoch: ", self.step)
             print("Training samples: ", len(self.dataloader_lr_train))
             # TODO: Add pre-captured bgr
-            for true_fgr, true_pha, true_bgr in \
+            for true_fgr, true_pha, true_bgr, precaptured_bgr in \
                     tqdm(self.dataloader_lr_train, disable=self.args.disable_progress_bar, dynamic_ncols=True):
                 self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=1, tag='lr')
 
@@ -328,7 +330,7 @@ class Trainer:
             total_loss, total_count = 0, 0
             with torch.no_grad():
                 with autocast(enabled=not self.args.disable_mixed_precision):
-                    for true_fgr, true_pha, true_bgr in tqdm(self.dataloader_valid,
+                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid,
                                                                          disable=self.args.disable_progress_bar,
                                                              dynamic_ncols=True):
                         true_fgr = true_fgr.to(self.rank, non_blocking=True)
