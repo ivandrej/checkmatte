@@ -2,36 +2,29 @@
 """
 
 import argparse
-import torch
-import random
 import os
-from torch import nn
+import random
+
+import torch
 from torch import distributed as dist
 from torch import multiprocessing as mp
+from torch import nn
+from torch.cuda.amp import autocast, GradScaler
 from torch.nn import functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Adam
-from torch.cuda.amp import autocast, GradScaler
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid
 from torchvision.transforms.functional import center_crop
+from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
-from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation
-from dataset.videomatte import (
-    VideoMatteDataset,
-    VideoMatteTrainAugmentation,
-    VideoMatteValidAugmentation, VideoMatteSpecializedNoAugmentation, VideoMatteSpecializedAugmentation,
-)
 from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
-from dataset.youtubevis import YouTubeVISDataset, YouTubeVISAugmentation
-
-from model import MattingNetwork
-from train_config import RVM_DATA_PATHS, SPECIALIZED_DATA_PATHS, BGR_FRAME_DATA_PATHS
+from model.model_concat_bgr import MattingNetwork
+from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss
 
 
@@ -182,9 +175,7 @@ class Trainer:
 
     def init_model(self):
         self.log('Initializing model')
-        # self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
-        # TODO: Update model to receive additional input
-        self.model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").to(self.rank)
+        self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
 
         if self.args.checkpoint:
             self.log(f'Restoring from checkpoint: {self.args.checkpoint}')
@@ -216,7 +207,6 @@ class Trainer:
             self.log(f'Training epoch: {epoch}')
             print("Step at start of this epoch: ", self.step)
             print("Training samples: ", len(self.dataloader_lr_train))
-            # TODO: Add pre-captured bgr
             for true_fgr, true_pha, true_bgr, precaptured_bgr in \
                     tqdm(self.dataloader_lr_train, disable=self.args.disable_progress_bar, dynamic_ncols=True):
                 self.train_mat(true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio=1, tag='lr')
@@ -243,7 +233,7 @@ class Trainer:
             print("Training batch shape: ", true_src.shape)
 
         with autocast(enabled=not self.args.disable_mixed_precision):
-            pred_fgr, pred_pha = self.model_ddp(true_src, downsample_ratio=downsample_ratio)[:2]
+            pred_fgr, pred_pha = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:2]
             loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
 
         self.scaler.scale(loss['total']).backward()
