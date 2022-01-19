@@ -329,12 +329,13 @@ class Trainer:
                         true_fgr = true_fgr.to(self.rank, non_blocking=True)
                         true_pha = true_pha.to(self.rank, non_blocking=True)
                         true_bgr = true_bgr.to(self.rank, non_blocking=True)
+                        precaptured_bgr = precaptured_bgr.to(self.rank, non_blocking=True)
                         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
                         if self.step == 0 and total_count == 0:  # only print once
                             print("Validation batch shape: ", true_src.shape)
 
                         batch_size = true_src.size(0)
-                        pred_fgr, pred_pha = self.model(true_src)[:2]
+                        pred_fgr, pred_pha = self.model(true_src, precaptured_bgr)[:2]
                         total_loss += matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)['total'].item() * batch_size
                         total_count += batch_size
             avg_loss = total_loss / total_count

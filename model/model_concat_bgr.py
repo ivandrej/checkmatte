@@ -69,7 +69,7 @@ class MattingNetwork(nn.Module):
         f4_concat = torch.cat((f4_bgr, f4), dim=2)
         f4_concat = self.project_concat(f4_concat)
 
-        print("Projected Concat shape : ", f4_concat.shape)
+        # print("Projected Concat shape : ", f4_concat.shape)
 
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4, r1, r2, r3, r4)
 
