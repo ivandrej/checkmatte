@@ -36,7 +36,7 @@ class PrecapturedBgrAugmentation:
         self.aspect_ratio_range = aspect_ratio_range
         self.random_sized_crop = random_sized_crop
 
-    def __call__(self, fgrs, phas, bgrs, precaptured_bgrs):
+    def __call__(self, fgrs, phas, bgrs, bgrs_):
         # Foreground affine
         if random.random() < self.prob_fgr_affine:
             fgrs, phas = MotionAugmentation.motion_affine(fgrs, phas)
@@ -56,7 +56,7 @@ class PrecapturedBgrAugmentation:
         fgrs = torch.stack([F.to_tensor(fgr) for fgr in fgrs])
         phas = torch.stack([F.to_tensor(pha) for pha in phas])
         bgrs = torch.stack([F.to_tensor(bgr) for bgr in bgrs])
-        precaptured_bgrs = torch.stack([F.to_tensor(bgr) for bgr in precaptured_bgrs])
+        bgrs_ = torch.stack([F.to_tensor(bgr) for bgr in bgrs_])
 
         # Resize
         if self.random_sized_crop:  # random crop of a square of size (self.size, self.size)
@@ -68,6 +68,7 @@ class PrecapturedBgrAugmentation:
             bgrs = F.resized_crop(bgrs, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
         else:  # resize such that smaller side has self.size
             bgrs = F.resize(bgrs, self.size, interpolation=F.InterpolationMode.BILINEAR)
+            bgrs_ = F.resize(bgrs_, self.size, interpolation=F.InterpolationMode.BILINEAR)
             h, w = bgrs.shape[-2:]
 
             # Match size of fgrs to bgrs. Most fgrs are 432 x 768 - the standard aspect ratio of 16:9. A few are
@@ -116,4 +117,4 @@ class PrecapturedBgrAugmentation:
         if random.random() < self.prob_pause:
             fgrs, phas, bgrs = MotionAugmentation.motion_pause(fgrs, phas, bgrs)
 
-        return fgrs, phas, bgrs, precaptured_bgrs
+        return fgrs, phas, bgrs, bgrs_

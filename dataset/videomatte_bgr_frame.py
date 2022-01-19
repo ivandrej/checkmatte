@@ -62,6 +62,7 @@ class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAugmentation):
             prob_blur=0.02,
             prob_hflip=0.5,
             prob_pause=0.03,
+            random_sized_crop=False
         )
 
 
@@ -78,4 +79,5 @@ class VideoMattePrecapturedBgrValidAugmentation(PrecapturedBgrAugmentation):
             prob_blur=0,
             prob_hflip=0,
             prob_pause=0,
+            random_sized_crop=False
         )
