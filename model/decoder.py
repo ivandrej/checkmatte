@@ -15,6 +15,14 @@ class RecurrentDecoder(nn.Module):
         self.decode1 = UpsamplingBlock(decoder_channels[1], feature_channels[0], 3, decoder_channels[2])
         self.decode0 = OutputBlock(decoder_channels[2], 3, decoder_channels[3])
 
+    """
+        s0 = original video
+        f1, f2, f3, f4 = backbone features at 4 scales
+        Each decoder block receives 3 inputs:
+          - output of previous scale decoder block
+          - source input at the scale of the block
+          - backbone features at the scale of the block 
+    """
     def forward(self,
                 s0: Tensor, f1: Tensor, f2: Tensor, f3: Tensor, f4: Tensor,
                 r1: Optional[Tensor], r2: Optional[Tensor],
