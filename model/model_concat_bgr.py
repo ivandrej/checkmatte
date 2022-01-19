@@ -64,14 +64,14 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
-        print("ASPP features: ", f4_bgr.shape, f4.shape)
+        # print("ASPP features: ", f4_bgr.shape, f4.shape)
 
         f4_concat = torch.cat((f4_bgr, f4), dim=2)
         f4_concat = self.project_concat(f4_concat)
 
         # print("Projected Concat shape : ", f4_concat.shape)
 
-        hid, *rec = self.decoder(src_sm, f1, f2, f3, f4, r1, r2, r3, r4)
+        hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_concat, r1, r2, r3, r4)
 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)
