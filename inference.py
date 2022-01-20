@@ -1,5 +1,7 @@
 import torch
 import os
+
+from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Tuple
@@ -9,6 +11,7 @@ from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, Image
 
 def convert_video(model,
                   input_source: str,
+                  bgr_source: str = None,
                   input_resize: Optional[Tuple[int, int]] = None,
                   downsample_ratio: Optional[float] = None,
                   output_type: str = 'video',
@@ -24,6 +27,7 @@ def convert_video(model,
     """
     Args:
         input_source:A video file, or an image sequence directory. Images must be sorted in accending order, support png and jpg.
+        bgr_source: If provided, use model with additional background input
         input_resize: If provided, the input are first resized to (w, h).
         downsample_ratio: The model's downsample_ratio hyperparameter. If not provided, model automatically set one.
         output_type: Options: ["video", "png_sequence"].
@@ -58,10 +62,21 @@ def convert_video(model,
 
     # Initialize reader
     if os.path.isfile(input_source):
-        source = VideoReader(input_source, transform)
+        raise Exception("Video not implemented yet")
+        # source = VideoReader(input_source, transform)
     else:
         source = ImageSequenceReader(input_source, transform)
+
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
+    # Read all bgr frames in memory
+    bgrs = []
+    for frame in sorted(os.listdir(bgr_source)):
+        with Image.open(os.path.join(bgr_source, frame)) as bgr:
+            bgr.load()
+        if transform is not None:
+            bgr = transform(bgr)
+        bgrs.append(bgr)
+        break
 
     # Initialize writers
     if output_type == 'video':
@@ -98,19 +113,25 @@ def convert_video(model,
         device = param.device
 
     if (output_composition is not None) and (output_type == 'video'):
+        # TODO: Re-name, name is overriden right now
         bgr = torch.tensor([120, 255, 155], device=device, dtype=dtype).div(255).view(1, 1, 3, 1, 1)
 
     try:
         with torch.no_grad():
             bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
             rec = [None] * 4
+            i = 0
             for src in reader:
+                # TODO: Add T dimension in a more general way
+                bgr = bgrs[i].unsqueeze(0)  # [T, C, H, W]
+                i = min(i + 1, len(bgrs) - 1)
 
                 if downsample_ratio is None:
                     downsample_ratio = auto_downsample_ratio(*src.shape[2:])
 
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
-                fgr, pha, *rec = model(src, *rec, downsample_ratio)
+                bgr = bgr.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
+                fgr, pha, *rec = model(src, bgr, *rec, downsample_ratio)
 
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])
