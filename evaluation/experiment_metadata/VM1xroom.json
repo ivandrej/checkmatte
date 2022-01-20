@@ -1,0 +1,13 @@
+{
+    "bgr_paths": {
+        "dynamic": [
+            "/media/andivanov/DATA/training_datasets/specialized_iteration_1/room/train/room/"
+        ]
+    },
+    "fgr_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0000"
+    ],
+    "pha_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0000"
+    ]
+}

@@ -1,5 +1,5 @@
 """
-python python composite.py
+python composite.py
     --out-dir ~/dev/data/composited_evaluation/experiment3/input
     --experiment-metadata experiment_metadata/VMxDVM_0013.json
     --resize 512 288
@@ -36,16 +36,13 @@ def composite_fgrs_to_bgrs(base_out_dir, experiment_metadata, args):
         out_dir = os.path.join(base_out_dir, com_paths.clipname)
         print("Creating: ", com_paths.clipname)
         os.makedirs(out_dir, exist_ok=True)
-        if com_paths.bgr_path.endswith(".mp4") or com_paths.bgr_path.endswith(".MTS"):  # video background
-            bgr = pims.PyAVVideoReader(com_paths.bgr_path)
-        else:  # image (static) background
-            with Image.open(com_paths.bgr_path) as bgr:
-                bgr = bgr.convert('RGB')
 
         if os.path.isdir(com_paths.fgr_path):  # Fgr is img seq
-            fgr_img_seq_bgr_vid(bgr, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
+            fgr_img_seq_bgr_vid(com_paths.bgr_path, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
         else:   # Fgr is video
-            fgr_vid_bgr_img(bgr, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
+            # TODO: Fix fgr video
+            raise Exception("Fgr video is broken")
+            # fgr_vid_bgr_img(bgr, com_paths.fgr_path, com_paths.pha_path, out_dir, args)
 
 
 def com_clipname(pha_path, bgr_path):

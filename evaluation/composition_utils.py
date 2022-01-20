@@ -5,11 +5,16 @@ import pims
 from PIL import Image
 from tqdm import tqdm
 
-
-# TODO: Add option for bgr img_seq
-
-def fgr_img_seq_bgr_vid(bgrs, fgr_path, pha_path, out_dir, args):
+def fgr_img_seq_bgr_vid(bgr_path, fgr_path, pha_path, out_dir, args):
     framenames = sorted(os.listdir(fgr_path))
+
+    if os.path.isdir(bgr_path):  # img seq
+        bgr_framenames = sorted(os.listdir(bgr_path))
+        bgrs = [os.path.join(bgr_path, framename) for framename in bgr_framenames]
+    elif bgr_path.endswith(".mp4") or bgr_path.endswith(".MTS"):  # video background
+        bgrs = pims.PyAVVideoReader(bgr_path)
+    else:  # TODO: Add option for still image
+        raise Exception("Single image bgr not supported")
 
     num_frames = min(args.num_frames, min(len(framenames), len(bgrs)))
     for t in tqdm(range(num_frames)):
@@ -22,12 +27,28 @@ def fgr_img_seq_bgr_vid(bgrs, fgr_path, pha_path, out_dir, args):
                 fgr = fgr.resize(args.resize, Image.BILINEAR)
                 pha = pha.resize(args.resize, Image.BILINEAR)
 
-        bgr = Image.fromarray(bgrs[t])
+        bgr = get_bgr_frame(bgrs, t)
+        # bgr = Image.fromarray(bgrs[t])
         bgr = bgr.resize(fgr.size, Image.BILINEAR)
 
         pha = np.asarray(pha).astype(float)[:, :, None] / 255
         com = Image.fromarray(np.uint8(np.asarray(fgr) * pha + np.asarray(bgr) * (1 - pha)))
         com.save(os.path.join(out_dir, str(t).zfill(4) + '.png'))
+
+
+"""
+    Allows to handle video and img seq bgrs together
+    - if img_seq, bgrs is a list of full paths to frames
+    - if vid, bgrs is a video
+"""
+def get_bgr_frame(bgrs, t):
+    if type(bgrs) is list:  # img seq
+        with Image.open(bgrs[t]) as bgr:
+            bgr = bgr.convert('RGB')
+            return bgr
+    else:
+        return Image.fromarray(bgrs[t])
+
 
 
 """

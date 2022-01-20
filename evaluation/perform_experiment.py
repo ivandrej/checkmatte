@@ -3,12 +3,7 @@ import sys
 
 import torch
 
-# Need to have RVM locally https://github.com/PeterL1n/RobustVideoMatting
-sys.path.append(os.path.abspath('..'))
-from model import MattingNetwork
-
-
-sys.path.append("/home/andivanov/dev/RobustVideoMatting/")
+from model import model, model_concat_bgr
 from inference import convert_video
 import argparse
 
@@ -35,7 +30,8 @@ def inference(experiment_dir, load_model, output_type="png_sequence"):
     if load_model == "RVM":
         model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
     else:
-        model = MattingNetwork("mobilenetv3").eval().cuda()
+        # TODO: Allow for RVM model too
+        model = model_concat_bgr.MattingNetwork("mobilenetv3").eval().cuda()
         model.load_state_dict(torch.load(load_model))
 
     # For each sample (directory with frames) in experiment dir
