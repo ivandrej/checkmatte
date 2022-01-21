@@ -6,16 +6,15 @@ import sys
 
 import torch
 
-# sys.path.append(os.path.abspath('..'))
-from model import MattingNetwork
+from model import model, model_concat_bgr
 
-sys.path.append("/home/andivanov/dev/RobustVideoMatting/")
 from inference import convert_video
 
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)
+parser.add_argument('--bgr-source', type=str, default=None)
 parser.add_argument('--out-dir', type=str, required=True)
 parser.add_argument('--load-model', type=str, required=True)
 parser.add_argument('--output-type', type=str, default='video', required=False)
@@ -27,7 +26,11 @@ if not os.path.exists(args.out_dir):
     os.makedirs(args.out_dir)
 
 for epoch in args.epochs:
-    model = MattingNetwork("mobilenetv3").eval().cuda()
+    if args.bgr_source:
+        model = model_concat_bgr.MattingNetwork("mobilenetv3").eval().cuda()
+    else:
+        model = model.MattingNetwork("mobilenetv3").eval().cuda()
+
     model.load_state_dict(torch.load(os.path.join(args.load_model, f"epoch-{epoch}.pth")))
     out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
 
@@ -52,6 +55,7 @@ for epoch in args.epochs:
         convert_video(
             model,  # The loaded model, can be on any device (cpu or cuda).
             input_source=args.input_source,
+            bgr_source=args.bgr_source,
             input_resize=args.resize,  # [Optional] Resize the input (also the output).
             downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
             output_type="png_sequence",  # Choose "video" or "png_sequence"
@@ -59,7 +63,7 @@ for epoch in args.epochs:
             output_alpha=f"{out_dir}/pha",  # [Optional] Output the raw alpha prediction.
             output_foreground=f"{out_dir}/fgr",
             # [Optional] Output the raw foreground prediction.
-            seq_chunk=12,  # Process n frames at once for better parallelism.
+            seq_chunk=1,  # Process n frames at once for better parallelism.
             progress=True  # Print conversion progress.
         )
 
