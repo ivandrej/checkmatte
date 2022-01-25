@@ -16,6 +16,7 @@ class MattingNetwork(nn.Module):
     def __init__(self,
                  variant: str = 'mobilenetv3',
                  refiner: str = 'deep_guided_filter',
+                 pretrained_on_rvm=True,
                  pretrained_backbone: bool = False):
         super().__init__()
         assert variant in ['mobilenetv3', 'resnet50']
@@ -41,6 +42,11 @@ class MattingNetwork(nn.Module):
             self.refiner = DeepGuidedFilterRefiner()
         else:
             self.refiner = FastGuidedFilterRefiner()
+
+        rvm_state_dict = torch.load("/media/andivanov/DATA/training/rvm_mobilenetv3.pth")
+        if pretrained_on_rvm:
+            print("Loading pre-trained weights from RVM")
+            self.load_state_dict(rvm_state_dict, strict=False)
 
     def forward(self,
                 src: Tensor,
