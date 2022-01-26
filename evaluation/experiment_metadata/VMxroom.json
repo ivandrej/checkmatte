@@ -1,7 +1,7 @@
 {
     "bgr_paths": {
         "semi_dynamic": [
-            "/media/andivanov/DATA/dynamic_backgrounds_captured/room_1.mp4"
+            "/media/andivanov/DATA/training_datasets/specialized_iteration_1/room/train/room/"
         ]
     },
     "fgr_paths": [

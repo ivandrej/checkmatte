@@ -40,13 +40,20 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
                 precaptured_bgr = self._downsample_if_needed(precaptured_bgr.convert('RGB'))
             precaptured_bgrs.append(precaptured_bgr)
 
+            # Remove this when implementing a matching algorithm
+            assert(bgr == precaptured_bgr)
+
         return bgrs, precaptured_bgrs
 
+    """
+        Currently offset = 0, meaning we train on a perfectly aligned background frame
+    """
     def _get_random_background_frame_offset(self):
-        if random.random() < 0.5:
-            return -50
-        else:
-            return 50
+        return 0
+        # if random.random() < 0.5:
+        #     return -50
+        # else:
+        #     return 50
 
 
 class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAugmentation):
@@ -79,5 +86,6 @@ class VideoMattePrecapturedBgrValidAugmentation(PrecapturedBgrAugmentation):
             prob_blur=0,
             prob_hflip=0,
             prob_pause=0,
-            random_sized_crop=False
+            random_sized_crop=False,
+            static_affine=False
         )

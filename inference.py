@@ -120,6 +120,8 @@ def convert_video(model,
         with torch.no_grad():
             bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
             rec = [None] * 4
+
+            # Dummy matching algorithm. Person frame i is matched with bgr frame i
             i = 0
             for src in reader:
                 # TODO: Add T dimension in a more general way
