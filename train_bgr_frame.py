@@ -185,7 +185,8 @@ class Trainer:
         self.model = nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
         self.optimizer = Adam([
-            {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+            # {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+            {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
             {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
             {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
