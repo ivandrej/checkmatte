@@ -187,7 +187,9 @@ class Trainer:
         self.optimizer = Adam([
             # {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
             {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
-            {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
+            # {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
+            {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
+            {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
             {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
         ])
