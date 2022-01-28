@@ -177,6 +177,10 @@ class Trainer:
         self.log('Initializing model')
         self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
 
+        # Freeze person backbone
+        for param in self.model.backbone.parameters():
+            param.requires_grad = False
+
         if self.args.checkpoint:
             self.log(f'Restoring from checkpoint: {self.args.checkpoint}')
             self.log(self.model.load_state_dict(
