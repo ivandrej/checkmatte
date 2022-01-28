@@ -101,7 +101,7 @@ class Trainer:
             seq_length=self.args.seq_length_lr,
             # TODO: Remove temporal augmentations
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMattePrecapturedBgrValidAugmentation(self.args.resolution_lr),
+            transform=VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr),
             max_videomatte_clips=self.args.videomatte_clips)
         # if self.args.train_hr:
         #     self.dataset_hr_train = VideoMattePrecapturedBgrDataset(
