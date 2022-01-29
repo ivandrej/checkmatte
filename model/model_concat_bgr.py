@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 from typing import Optional, List
 
+from train_config import BGR_FRAME_DATA_PATHS
 from .mobilenetv3 import MobileNetV3LargeEncoder
 from .resnet import ResNet50Encoder
 from .lraspp import LRASPP
@@ -43,7 +44,7 @@ class MattingNetwork(nn.Module):
         else:
             self.refiner = FastGuidedFilterRefiner()
 
-        rvm_state_dict = torch.load("/media/andivanov/DATA/training/rvm_mobilenetv3.pth")
+        rvm_state_dict = torch.load(BGR_FRAME_DATA_PATHS["rvm_model"])
         if pretrained_on_rvm:
             print("Loading pre-trained weights from RVM")
             self.load_state_dict(rvm_state_dict, strict=False)
