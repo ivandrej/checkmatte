@@ -17,6 +17,7 @@ class MattingNetwork(nn.Module):
     def __init__(self,
                  variant: str = 'mobilenetv3',
                  refiner: str = 'deep_guided_filter',
+                 bgr_integration: str = 'concat',
                  pretrained_on_rvm=True,
                  pretrained_backbone: bool = False):
         super().__init__()
@@ -29,6 +30,9 @@ class MattingNetwork(nn.Module):
             self.backbone_bgr = MobileNetV3LargeEncoder(pretrained_backbone)
             self.aspp = LRASPP(960, 128)
             self.aspp_bgr = LRASPP(960, 128)
+
+            if bgr_integration == "attention":
+                self.spatial_attention = SpatialAttention()
             self.project_concat = ProjectionWithBnRelu(256, 128)
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
@@ -71,12 +75,15 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
+        if self.spatial_attention:
+            bgr_guidance = self.spatial_attention(f4, f4_bgr)
+        else:
+            bgr_guidance = f4_bgr
+
         # print("ASPP features: ", f4_bgr.shape, f4.shape)
 
-        f4_concat = torch.cat((f4_bgr, f4), dim=2)
+        f4_concat = torch.cat((bgr_guidance, f4), dim=2)
         f4_concat = self.project_concat(f4_concat)
-
-        # print("Projected Concat shape : ", f4_concat.shape)
 
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_concat, r1, r2, r3, r4)
 
@@ -102,6 +109,28 @@ class MattingNetwork(nn.Module):
             x = F.interpolate(x, scale_factor=scale_factor,
                               mode='bilinear', align_corners=False, recompute_scale_factor=False)
         return x
+
+
+class SpatialAttention(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward_single_frame(self, p, b):
+        return b
+
+    def forward_time_series(self, p, b):
+        assert (p.shape == b.shape)
+        B, T = p.shape[:2]
+        features = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
+        features = features.unflatten(0, (B, T))
+        return features
+
+    def forward(self, p, b):
+        assert(p.shape == b.shape)
+        if p.ndim == 5:
+            return self.forward_time_series(p, b)
+        else:
+            return self.forward_single_frame(p, b)
 
 
 class ProjectionWithBnRelu(nn.Module):

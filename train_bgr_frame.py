@@ -54,6 +54,7 @@ class Trainer:
         parser.add_argument('--train-hr', action='store_true')
         parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
         parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
+        parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='concat')
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
         parser.add_argument('--seq-length-lr', type=int, required=True)
@@ -175,7 +176,9 @@ class Trainer:
 
     def init_model(self):
         self.log('Initializing model')
-        self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
+        self.model = MattingNetwork(self.args.model_variant,
+                                    pretrained_backbone=True,
+                                    bgr_integration=self.args.bgr_integration).to(self.rank)
 
         # Freeze person backbone
         for param in self.model.backbone.parameters():
