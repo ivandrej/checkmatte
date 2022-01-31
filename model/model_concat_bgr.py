@@ -31,8 +31,10 @@ class MattingNetwork(nn.Module):
             self.aspp = LRASPP(960, 128)
             self.aspp_bgr = LRASPP(960, 128)
 
+            # TODO: Add variables for number of channels
             if bgr_integration == "attention":
-                self.spatial_attention = SpatialAttention()
+                self.spatial_attention = SpatialAttention(128, 128)
+
             self.project_concat = ProjectionWithBnRelu(256, 128)
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
@@ -112,11 +114,28 @@ class MattingNetwork(nn.Module):
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
+        self.query_conv = nn.Conv2d(in_channels, out_channels, 1)
+        self.key_conv = nn.Conv2d(in_channels, out_channels, 1)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward_single_frame(self, p, b):
-        return b
+        assert(p.shape == b.shape)
+        H, W = p.shape[-2:]
+        # query = person frames, key = background frames
+        query = self.query_conv(p).flatten(2, 3)  # B x C x N
+        query = query.permute(0, 2, 1)  # B x N x C
+        key = self.key_conv(b).flatten(2, 3)  # B x C x N
+
+        energy = torch.bmm(query, key)  # B x N x N
+        attention = self.softmax(energy)  # B x N x N
+
+        out = torch.bmm(attention, b.flatten(2, 3).permute(0, 2, 1))  # B x N x C
+        out = out.permute(0, 2, 1)  # B x C x N
+        out = out.unflatten(-1, (H, W))  # B x C x H x W
+
+        return out
 
     def forward_time_series(self, p, b):
         assert (p.shape == b.shape)
