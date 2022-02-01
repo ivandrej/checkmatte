@@ -47,8 +47,8 @@ class MotionAugmentation:
                 
         # Still Affine
         if self.static_affine:
-            fgrs, phas = self.static_affine(fgrs, phas, scale_ranges=(0.5, 1))
-            bgrs = self.static_affine(bgrs, scale_ranges=(1, 1.5))
+            fgrs, phas = MotionAugmentation.static_affine(fgrs, phas, scale_ranges=(0.5, 1))
+            bgrs = MotionAugmentation.static_affine(bgrs, scale_ranges=(1, 1.5))
         
         # To tensor
         fgrs = torch.stack([F.to_tensor(fgr) for fgr in fgrs])
