@@ -101,7 +101,7 @@ from dataset.videomatte import (
     VideoMatteValidAugmentation,
 )
 
-from model import MattingNetwork
+from model.model import MattingNetwork
 from train_config import RVM_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss
 
