@@ -32,7 +32,7 @@ def inference(experiment_dir, load_model, output_type="png_sequence"):
         model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
     else:
         # TODO: Allow for RVM model too
-        model = model_concat_bgr.MattingNetwork("mobilenetv3").eval().cuda()
+        model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=args.bgr_integration).eval().cuda()
         model.load_state_dict(torch.load(load_model))
 
     # For each sample (directory with frames) in experiment dir
@@ -98,6 +98,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-dir', type=str, required=True)
     parser.add_argument('--bgr-source', type=str, default=None)
+    # only relevant if --bgr-source is specified
+    parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='attention')
     parser.add_argument('--load-model', type=str, required=True)
     parser.add_argument('--input-resize', type=int, default=None, nargs=2)
     parser.add_argument('--output-type', type=str, default='png_sequence', required=False)

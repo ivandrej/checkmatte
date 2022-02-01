@@ -15,6 +15,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)
 parser.add_argument('--bgr-source', type=str, default=None)
+# only relevant if --bgr-source is specified
+parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='attention')
 parser.add_argument('--out-dir', type=str, required=True)
 parser.add_argument('--load-model', type=str, required=True)
 parser.add_argument('--output-type', type=str, default='video', required=False)
@@ -27,7 +29,8 @@ if not os.path.exists(args.out_dir):
 
 for epoch in args.epochs:
     if args.bgr_source:
-        model = model_concat_bgr.MattingNetwork("mobilenetv3").eval().cuda()
+        model = model_concat_bgr.MattingNetwork("mobilenetv3",
+                                                bgr_integration=args.bgr_integration).eval().cuda()
     else:
         model = model.MattingNetwork("mobilenetv3").eval().cuda()
 
