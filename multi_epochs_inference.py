@@ -62,11 +62,12 @@ for epoch in args.epochs:
             input_resize=args.resize,  # [Optional] Resize the input (also the output).
             downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
             output_type="png_sequence",  # Choose "video" or "png_sequence"
-            output_composition=f"{out_dir}/com",
+            # output_composition=f"{out_dir}/com",
             output_alpha=f"{out_dir}/pha",  # [Optional] Output the raw alpha prediction.
-            output_foreground=f"{out_dir}/fgr",
+            bgr_src_pairs=f"{out_dir}/bgr_src",
+            # output_foreground=f"{out_dir}/fgr",
             # [Optional] Output the raw foreground prediction.
-            seq_chunk=1,  # Process n frames at once for better parallelism.
+            seq_chunk=12,  # Process n frames at once for better parallelism.
             progress=True  # Print conversion progress.
         )
 

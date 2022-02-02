@@ -72,7 +72,7 @@ def inference(experiment_dir, load_model, output_type="png_sequence"):
                 bgr_src_pairs=os.path.join(out_dir, "bgr_src"),
                 # output_foreground=os.path.join(out_dir, "fgr"),  # [Optional] Output the raw foreground prediction.
                 output_video_mbps=4,  # Output video mbps. Not needed for png sequence.
-                seq_chunk=1,  # Process n frames at once for better parallelism.
+                seq_chunk=12,  # Process n frames at once for better parallelism.
                 num_workers=1,  # Only for image sequence input. Reader threads.
                 progress=True  # Print conversion progress.
             )

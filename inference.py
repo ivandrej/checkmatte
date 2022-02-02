@@ -127,9 +127,11 @@ def convert_video(model,
             # Dummy matching algorithm. Person frame i is matched with bgr frame i
             i = 0
             for src in reader:
-                # TODO: Add T dimension in a more general way
-                bgr = bgrs[i].unsqueeze(0)  # [T, C, H, W]
-                i = min(i + 1, len(bgrs) - 1)
+                bgr = []
+                for _ in src:  # For each of the T frames
+                    bgr.append(bgrs[i])
+                    i = min(i + 1, len(bgrs) - 1)
+                bgr = torch.stack(bgr)  # List of T [C, H, W] to tensor of [T, C, H, W]
 
                 if downsample_ratio is None:
                     downsample_ratio = auto_downsample_ratio(*src.shape[2:])
