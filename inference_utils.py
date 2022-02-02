@@ -2,6 +2,7 @@ import av
 import os
 import pims
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_pil_image
 from PIL import Image
@@ -80,6 +81,31 @@ class ImageSequenceWriter:
         # frames: [T, C, H, W]
         for t in range(frames.shape[0]):
             to_pil_image(frames[t]).save(os.path.join(
+                self.path, str(self.counter).zfill(4) + '.' + self.extension))
+            self.counter += 1
+
+    def close(self):
+        pass
+
+
+"""
+    Writes out two frames (side-by-side) in one .png
+"""
+class ImagePairSequenceWriter:
+    def __init__(self, path, extension='jpg'):
+        self.path = path
+        self.extension = extension
+        self.counter = 0
+        os.makedirs(path, exist_ok=True)
+
+    def write(self, frames1, frames2):
+        # frames: [T, C, H, W]
+        assert(frames1.shape == frames2.shape)
+        for t in range(frames1.shape[0]):
+            # print(frames1[t].shape)
+            pair_image = torch.cat((frames1[t], frames2[t]), dim=-1)  # concat along W (horizontally)
+            # print("Shape of pair", pair_image.shape)
+            to_pil_image(pair_image).save(os.path.join(
                 self.path, str(self.counter).zfill(4) + '.' + self.extension))
             self.counter += 1
 

@@ -7,7 +7,8 @@ from torchvision import transforms
 from typing import Optional, Tuple
 from tqdm.auto import tqdm
 
-from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter
+from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, ImagePairSequenceWriter
+
 
 def convert_video(model,
                   input_source: str,
@@ -18,6 +19,7 @@ def convert_video(model,
                   output_composition: Optional[str] = None,
                   output_alpha: Optional[str] = None,
                   output_foreground: Optional[str] = None,
+                  bgr_src_pairs: Optional[str] = None,
                   output_video_mbps: Optional[float] = None,
                   seq_chunk: int = 1,
                   num_workers: int = 0,
@@ -104,6 +106,8 @@ def convert_video(model,
             writer_pha = ImageSequenceWriter(output_alpha, 'png')
         if output_foreground is not None:
             writer_fgr = ImageSequenceWriter(output_foreground, 'png')
+        if bgr_src_pairs is not None:
+            writer_bgr = ImagePairSequenceWriter(bgr_src_pairs, 'png')
 
     # Inference
     model = model.eval()
@@ -146,6 +150,8 @@ def convert_video(model,
                         fgr = fgr * pha.gt(0)
                         com = torch.cat([fgr, pha], dim=-3)
                     writer_com.write(com[0])
+                if bgr_src_pairs is not None:
+                    writer_bgr.write(bgr[0], src[0])
 
                 bar.update(src.size(1))
 
