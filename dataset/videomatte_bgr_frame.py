@@ -46,7 +46,7 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
         Returns an offset in the interval [-max_offset, max_offset]
     """
     def _get_random_background_frame_offset(self):
-        max_offset = 50
+        max_offset = 0
         return random.randint(-max_offset, max_offset)
 
 
