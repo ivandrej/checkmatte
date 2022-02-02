@@ -78,7 +78,6 @@ def convert_video(model,
         if transform is not None:
             bgr = transform(bgr)
         bgrs.append(bgr)
-        break
 
     # Initialize writers
     if output_type == 'video':
