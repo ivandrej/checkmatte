@@ -32,6 +32,7 @@ class MattingNetwork(nn.Module):
             self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
+            self.spatial_attention = None
             if bgr_integration == "attention":
                 self.spatial_attention = SpatialAttention(128, 128)
 
