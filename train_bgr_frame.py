@@ -100,10 +100,10 @@ class Trainer:
             background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['train'],
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
-            # TODO: Remove temporal augmentations
             seq_sampler=TrainFrameSampler(),
             transform=VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr),
-            max_videomatte_clips=self.args.videomatte_clips)
+            max_videomatte_clips=self.args.videomatte_clips,
+            offset=5)
         # if self.args.train_hr:
         #     self.dataset_hr_train = VideoMattePrecapturedBgrDataset(
         #         videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['train'],
@@ -120,7 +120,8 @@ class Trainer:
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMattePrecapturedBgrValidAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr))
+            transform=VideoMattePrecapturedBgrValidAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr),
+            offset=5)
 
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(

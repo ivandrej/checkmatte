@@ -10,6 +10,10 @@ from dataset.videomatte import VideoMatteDataset
     For each frame in the composited video, assigns a frame from the pre-captured background video. 
 """
 class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
+    def __init__(self, offset, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.offset = offset
+
     def __getitem__(self, idx):
         bgrs, precaptured_bgrs = self._get_random_video_background()
 
@@ -24,6 +28,8 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
         clip = self.background_video_clips[clip_idx]
         bgrs = []
         precaptured_bgrs = []
+
+        offset_generator = TemporalOffset(self.offset)
         for i in self.seq_sampler(self.seq_length):
             frame_idx_t = frame_idx + i
 
@@ -34,21 +40,25 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
             bgrs.append(bgr)
 
             # get unaligned background frame
-            offset = self._get_random_background_frame_offset()
-            precaptured_frame = self.background_video_frames[clip_idx][(frame_idx_t + offset) % frame_count]
+            offset = offset_generator.get_frame_offset()
+            # if offset frame reached end of bgr video, just return last frame
+            bgr_frame_idx_t = min(frame_count - 1, frame_idx_t + offset)
+            precaptured_frame = self.background_video_frames[clip_idx][bgr_frame_idx_t]
             with Image.open(os.path.join(self.background_video_dir, clip, precaptured_frame)) as precaptured_bgr:
                 precaptured_bgr = self._downsample_if_needed(precaptured_bgr.convert('RGB'))
             precaptured_bgrs.append(precaptured_bgr)
 
         return bgrs, precaptured_bgrs
 
-    """
-        Returns an offset in the interval [-max_offset, max_offset]
-    """
-    def _get_random_background_frame_offset(self):
-        max_offset = 50
-        return random.randint(-max_offset, max_offset)
+"""
+    Fixed offset given by max_offset (bgr is always faster).
+"""
+class TemporalOffset:
+    def __init__(self, max_offset):
+        self.max_offset = max_offset
 
+    def get_frame_offset(self):
+        return self.max_offset
 
 class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAugmentation):
     def __init__(self, size):
