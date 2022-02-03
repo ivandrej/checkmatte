@@ -258,12 +258,12 @@ class Trainer:
                 self.writer.add_scalar(f'train_{tag}_{loss_name}', loss_value, self.step)
 
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
-            self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
-                                  self.step)
+            # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
+            #                       self.step)
             self.writer.add_image(f'train_{tag}_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
                                   self.step)
-            self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
-                                  self.step)
+            # self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
+            #                       self.step)
             self.writer.add_image(f'train_{tag}_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
                                   self.step)
             self.writer.add_image(f'train_{tag}_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
@@ -333,11 +333,15 @@ class Trainer:
             self.log(f'Validating at the start of epoch: {self.epoch}')
             self.model_ddp.eval()
             total_loss, total_count = 0, 0
+            pred_phas = []
+            true_srcs = []
+            precaptured_bgrs = []
+            i = 0
             with torch.no_grad():
                 with autocast(enabled=not self.args.disable_mixed_precision):
                     for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid,
                                                                          disable=self.args.disable_progress_bar,
-                                                             dynamic_ncols=True):
+                                                                        dynamic_ncols=True):
                         true_fgr = true_fgr.to(self.rank, non_blocking=True)
                         true_pha = true_pha.to(self.rank, non_blocking=True)
                         true_bgr = true_bgr.to(self.rank, non_blocking=True)
@@ -350,6 +354,27 @@ class Trainer:
                         pred_fgr, pred_pha = self.model(true_src, precaptured_bgr)[:2]
                         total_loss += matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)['total'].item() * batch_size
                         total_count += batch_size
+
+                        if i % 12 == 0:  # reduces number of samples to show
+                            pred_phas.append(pred_pha)
+                            true_srcs.append(true_src)
+                            precaptured_bgrs.append(precaptured_bgr)
+                        i += 1
+
+            pred_phas = torch.cat(pred_phas, dim=0)
+            true_srcs = torch.cat(true_srcs, dim=0)
+            precaptured_bgrs = torch.cat(precaptured_bgrs, dim=0)
+
+            if self.rank == 0:
+                self.writer.add_image(f'valid_pred_pha',
+                                      make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
+                                      self.step)
+                self.writer.add_image(f'valid_true_src',
+                                      make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
+                                      self.step)
+                self.writer.add_image(f'valid_precaptured_bgr',
+                                      make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
+                                      self.step)
             avg_loss = total_loss / total_count
             self.log(f'Validation set average loss: {avg_loss}')
             self.writer.add_scalar('valid_loss', avg_loss, self.step)
