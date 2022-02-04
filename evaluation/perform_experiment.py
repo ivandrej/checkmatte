@@ -5,7 +5,7 @@ import torch
 
 sys.path.append("..")
 from model import model_concat_bgr
-from inference import convert_video
+from inference import convert_video, FixedOffsetMatcher
 import argparse
 
 """
@@ -34,6 +34,8 @@ def inference(experiment_dir, load_model, output_type="png_sequence"):
         # TODO: Allow for RVM model too
         model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=args.bgr_integration).eval().cuda()
         model.load_state_dict(torch.load(load_model))
+
+    matcher = FixedOffsetMatcher(args.bgr_offset)
 
     if args.input_dir:
         input_dir = args.input_dir
@@ -66,6 +68,7 @@ def inference(experiment_dir, load_model, output_type="png_sequence"):
         else:  # Save output to image seq
             convert_video(
                 model,  # The loaded model, can be on any device (cpu or cuda).
+                matcher=matcher,
                 input_source=os.path.join(input_dir, sample_name),
                 bgr_source=args.bgr_source,
                 # A video file or an image sequence directory.
@@ -108,6 +111,7 @@ if __name__ == "__main__":
     parser.add_argument('--bgr-source', type=str, default=None)
     # only relevant if --bgr-source is specified
     parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='attention')
+    parser.add_argument('--bgr_offset', type=int, default=None)  # for background frame matcher
     parser.add_argument('--load-model', type=str, required=True)
     parser.add_argument('--input-resize', type=int, default=None, nargs=2)
     parser.add_argument('--output-type', type=str, default='png_sequence', required=False)

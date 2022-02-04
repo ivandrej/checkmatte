@@ -10,8 +10,21 @@ from tqdm.auto import tqdm
 from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, ImagePairSequenceWriter
 
 
+# TODO: Move to separate class
+class FixedOffsetMatcher:
+    def __init__(self, offset):
+        self.offset = offset
+
+    """
+        i: index of person video
+    """
+    def match(self, i):
+        return i + self.offset
+
+
 def convert_video(model,
                   input_source: str,
+                  matcher: FixedOffsetMatcher = None,
                   bgr_source: str = None,
                   input_resize: Optional[Tuple[int, int]] = None,
                   downsample_ratio: Optional[float] = None,
@@ -124,13 +137,13 @@ def convert_video(model,
             bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
             rec = [None] * 4
 
-            # Dummy matching algorithm. Person frame i is matched with bgr frame i
             i = 0
             for src in reader:
                 bgr = []
                 for _ in src:  # For each of the T frames
-                    bgr.append(bgrs[i])
-                    i = min(i + 1, len(bgrs) - 1)
+                    matched_i = min(matcher.match(i), len(bgrs) - 1)
+                    bgr.append(bgrs[matched_i])
+                    i += 1
                 bgr = torch.stack(bgr)  # List of T [C, H, W] to tensor of [T, C, H, W]
 
                 if downsample_ratio is None:
@@ -164,7 +177,6 @@ def convert_video(model,
             writer_pha.close()
         if output_foreground is not None:
             writer_fgr.close()
-
 
 def auto_downsample_ratio(h, w):
     """
