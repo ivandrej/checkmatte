@@ -2,7 +2,7 @@ import os
 import random
 
 from PIL import Image
-
+import numpy as np
 from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation
 from dataset.videomatte import VideoMatteDataset
 
@@ -25,7 +25,7 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
         clip_idx = random.choice(range(len(self.background_video_clips)))
         frame_count = len(self.background_video_frames[clip_idx])
         frame_idx = random.choice(range(max(1, frame_count - self.seq_length)))
-        clip = self.background_video_clips[clip_idx]
+        # clip = self.background_video_clips[clip_idx]
         bgrs = []
         precaptured_bgrs = []
 
@@ -33,22 +33,28 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
         for i in self.seq_sampler(self.seq_length):
             frame_idx_t = frame_idx + i
 
-            # TODO: Extract in common method
-            frame = self.background_video_frames[clip_idx][frame_idx_t % frame_count]
-            with Image.open(os.path.join(self.background_video_dir, clip, frame)) as bgr:
-                bgr = self._downsample_if_needed(bgr.convert('RGB'))
+            frame_idx_t = frame_idx_t % frame_count
+            bgr = self.read_frame(clip_idx, frame_idx_t)
             bgrs.append(bgr)
 
             # get unaligned background frame
             offset = offset_generator.get_frame_offset()
             # if offset frame reached end of bgr video, just return last frame
             bgr_frame_idx_t = min(frame_count - 1, frame_idx_t + offset)
-            precaptured_frame = self.background_video_frames[clip_idx][bgr_frame_idx_t]
-            with Image.open(os.path.join(self.background_video_dir, clip, precaptured_frame)) as precaptured_bgr:
-                precaptured_bgr = self._downsample_if_needed(precaptured_bgr.convert('RGB'))
+            precaptured_bgr = self.read_frame(clip_idx, frame_idx_t)
             precaptured_bgrs.append(precaptured_bgr)
 
+            assert frame_idx_t == bgr_frame_idx_t, f"{frame_idx_t}, {bgr_frame_idx_t}, {frame_count}"
+            assert ((np.array(bgr) == np.array(precaptured_bgr)).all())
+
         return bgrs, precaptured_bgrs
+
+    def read_frame(self, clip_idx, frame_idx_t):
+        frame = self.background_video_frames[clip_idx][frame_idx_t]
+        clip = self.background_video_clips[clip_idx]
+        with Image.open(os.path.join(self.background_video_dir, clip, frame)) as frm:
+            frm = self._downsample_if_needed(frm.convert('RGB'))
+        return frm
 
 """
     Fixed offset given by max_offset (bgr is always faster).

@@ -55,6 +55,7 @@ class Trainer:
         parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
         parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
         parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='concat')
+        parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
         parser.add_argument('--seq-length-lr', type=int, required=True)
@@ -103,7 +104,7 @@ class Trainer:
             seq_sampler=TrainFrameSampler(),
             transform=VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr),
             max_videomatte_clips=self.args.videomatte_clips,
-            offset=5)
+            offset=self.args.temporal_offset)
         # if self.args.train_hr:
         #     self.dataset_hr_train = VideoMattePrecapturedBgrDataset(
         #         videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['train'],
@@ -121,7 +122,7 @@ class Trainer:
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
             transform=VideoMattePrecapturedBgrValidAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr),
-            offset=5)
+            offset=self.args.temporal_offset)
 
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
@@ -192,16 +193,19 @@ class Trainer:
 
         self.model = nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
-        self.optimizer = Adam([
+        param_lrs = [
             # {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
             {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
             # {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
-            {'params': self.model.spatial_attention.parameters(), 'lr': self.args.learning_rate_backbone},
             {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
             {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
-        ])
+        ]
+        if self.model.spatial_attention:
+            param_lrs.append({'params': self.model.spatial_attention.parameters(), 'lr': self.args.learning_rate_backbone})
+
+        self.optimizer = Adam(param_lrs)
         self.scaler = GradScaler()
 
     def init_writer(self):
