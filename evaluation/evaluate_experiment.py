@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--pred-dir', type=str, required=True)
     parser.add_argument('--experiment-metadata', type=str, required=True)
     parser.add_argument('--resize', type=int, required=True, nargs=2)
-    parser.add_argument('--num-workers', type=int, default=48)
+    parser.add_argument('--num-workers', type=int, default=8)
     parser.add_argument('--metrics', type=str, nargs='+', default=METRICS)
     return parser.parse_args()
 
@@ -223,5 +223,5 @@ if __name__ == '__main__':
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         warnings.warn("deprecated", DeprecationWarning)
-        Evaluator(args.pred_dir, args.experiment_metadata, args.metrics,
-                  args.num_workers, args.resize)
+        Evaluator(args.pred_dir, args.experiment_metadata, args.num_workers,
+                  args.resize, args.metrics)
