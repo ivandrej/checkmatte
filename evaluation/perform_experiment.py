@@ -27,19 +27,18 @@ File structure:
 """
 
 
-def inference(experiment_dir, load_model, output_type="png_sequence"):
+def inference(experiment_dir, load_model, input_dir, bgr_source, input_resize,
+              output_type="png_sequence", bgr_integration='attention', bgr_offset=0):
     if load_model == "RVM":
         model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
     else:
         # TODO: Allow for RVM model too
-        model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=args.bgr_integration).eval().cuda()
+        model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=bgr_integration).eval().cuda()
         model.load_state_dict(torch.load(load_model))
 
-    matcher = FixedOffsetMatcher(args.bgr_offset)
+    matcher = FixedOffsetMatcher(bgr_offset)
 
-    if args.input_dir:
-        input_dir = args.input_dir
-    else:
+    if input_dir is None:
         input_dir = os.path.join(experiment_dir, "input")
 
     # For each sample (directory with frames) in experiment dir
@@ -70,9 +69,9 @@ def inference(experiment_dir, load_model, output_type="png_sequence"):
                 model,  # The loaded model, can be on any device (cpu or cuda).
                 matcher=matcher,
                 input_source=os.path.join(input_dir, sample_name),
-                bgr_source=args.bgr_source,
+                bgr_source=bgr_source,
                 # A video file or an image sequence directory.
-                input_resize=args.input_resize,  # [Optional] Resize the input (also the output).
+                input_resize=input_resize,  # [Optional] Resize the input (also the output).
                 downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
                 output_type='png_sequence',  # Choose "video" or "png_sequence"
                 # output_composition=os.path.join(out_dir, "com"),  # File path if video; directory path if png sequence.
@@ -117,4 +116,5 @@ if __name__ == "__main__":
     parser.add_argument('--output-type', type=str, default='png_sequence', required=False)
     args = parser.parse_args()
 
-    inference(args.experiment_dir, args.load_model, args.output_type)
+    inference(args.experiment_dir, args.load_model, args.input_dir, args.bgr_source, args.input_resize,
+              args.output_type, args.bgr_integration, args.bgr_offset)
