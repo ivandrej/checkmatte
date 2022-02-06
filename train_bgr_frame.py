@@ -23,6 +23,7 @@ from tqdm import tqdm
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
 from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
+from evaluation.evaluation_metrics import MetricMAD
 from model.model_concat_bgr import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss
@@ -364,7 +365,7 @@ class Trainer:
                             true_srcs.append(true_src)
                             precaptured_bgrs.append(precaptured_bgr)
                         i += 1
-
+            mad_error = MetricMAD()(pred_pha, true_pha)
             pred_phas = torch.cat(pred_phas, dim=0)
             true_srcs = torch.cat(true_srcs, dim=0)
             precaptured_bgrs = torch.cat(precaptured_bgrs, dim=0)
@@ -381,7 +382,9 @@ class Trainer:
                                       self.step)
             avg_loss = total_loss / total_count
             self.log(f'Validation set average loss: {avg_loss}')
+            self.log(f'Validation MAD: {mad_error}')
             self.writer.add_scalar('valid_loss', avg_loss, self.step)
+            self.writer.add_scalar('valid_mad', mad_error, self.step)
             self.model_ddp.train()
         dist.barrier()
 
