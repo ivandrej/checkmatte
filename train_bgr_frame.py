@@ -57,6 +57,8 @@ class Trainer:
         parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
         parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='concat')
         parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
+        # what kind of transformations to apply to bgr and person frames. Default is no transformations
+        parser.add_argument('--transformations', type=str, choices=['none', 'person_only'], default='none')
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
         parser.add_argument('--seq-length-lr', type=int, required=True)
@@ -96,6 +98,13 @@ class Trainer:
         size_hr = (self.args.resolution_hr, self.args.resolution_hr)
         size_lr = (self.args.resolution_lr, self.args.resolution_lr)
 
+        if self.args.transformations == 'person_only':
+            train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)
+        elif self.args.transformations == 'none':
+            train_augmentation = VideoMattePrecapturedBgrValidAugmentation(self.args.resolution_lr)
+        else:
+            raise Exception(f'Transformation "{self.args.transformations}" not supported')
+
         # Matting datasets:
         self.dataset_lr_train = VideoMattePrecapturedBgrDataset(
             videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['train'],
@@ -103,7 +112,7 @@ class Trainer:
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr),
+            transform=train_augmentation,
             max_videomatte_clips=self.args.videomatte_clips,
             offset=self.args.temporal_offset)
         # if self.args.train_hr:
