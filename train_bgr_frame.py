@@ -134,6 +134,17 @@ class Trainer:
             transform=VideoMattePrecapturedBgrValidAugmentation(size_hr if self.args.train_hr else self.args.resolution_lr),
             offset=self.args.temporal_offset)
 
+        # Dataset of dynamic backgrounds - harder cases than most of the training samples
+        self.dataset_valid_hard = VideoMattePrecapturedBgrDataset(
+            videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
+            background_video_dir=BGR_FRAME_DATA_PATHS['phone_captures']['valid'],
+            size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
+            seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
+            seq_sampler=ValidFrameSampler(),
+            transform=VideoMattePrecapturedBgrValidAugmentation(
+                size_hr if self.args.train_hr else self.args.resolution_lr),
+            offset=self.args.temporal_offset)
+
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
             dataset=self.dataset_lr_train,
@@ -160,6 +171,11 @@ class Trainer:
                 pin_memory=True)
         self.dataloader_valid = DataLoader(
             dataset=self.dataset_valid,
+            batch_size=self.args.batch_size_per_gpu,
+            num_workers=self.args.num_workers,
+            pin_memory=True)
+        self.dataloader_valid_hard = DataLoader(
+            dataset=self.dataset_valid_hard,
             batch_size=self.args.batch_size_per_gpu,
             num_workers=self.args.num_workers,
             pin_memory=True)
@@ -229,6 +245,7 @@ class Trainer:
             self.step = epoch * len(self.dataloader_lr_train)
             if not self.args.disable_validation:
                 self.validate()
+                self.validate_hard()
 
             self.log(f'Training epoch: {epoch}')
             print("Step at start of this epoch: ", self.step)
@@ -353,7 +370,7 @@ class Trainer:
             i = 0
             with torch.no_grad():
                 with autocast(enabled=not self.args.disable_mixed_precision):
-                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid,
+                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid_hard,
                                                                          disable=self.args.disable_progress_bar,
                                                                         dynamic_ncols=True):
                         true_fgr = true_fgr.to(self.rank, non_blocking=True)
@@ -394,6 +411,61 @@ class Trainer:
             self.log(f'Validation MAD: {mad_error}')
             self.writer.add_scalar('valid_loss', avg_loss, self.step)
             self.writer.add_scalar('valid_mad', mad_error, self.step)
+            self.model_ddp.train()
+        dist.barrier()
+
+    def validate_hard(self):
+        if self.rank == 0:
+            self.log(f'Validating hard at the start of epoch: {self.epoch}')
+            self.model_ddp.eval()
+            total_loss, total_count = 0, 0
+            pred_phas = []
+            true_srcs = []
+            precaptured_bgrs = []
+            i = 0
+            with torch.no_grad():
+                with autocast(enabled=not self.args.disable_mixed_precision):
+                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid_hard,
+                                                                              disable=self.args.disable_progress_bar,
+                                                                              dynamic_ncols=True):
+                        true_fgr = true_fgr.to(self.rank, non_blocking=True)
+                        true_pha = true_pha.to(self.rank, non_blocking=True)
+                        true_bgr = true_bgr.to(self.rank, non_blocking=True)
+                        precaptured_bgr = precaptured_bgr.to(self.rank, non_blocking=True)
+                        true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+                        if total_count == 0:  # only print once
+                            print("Validation hard batch shape: ", true_src.shape)
+
+                        batch_size = true_src.size(0)
+                        pred_fgr, pred_pha = self.model(true_src, precaptured_bgr)[:2]
+                        total_loss += matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)[
+                                          'total'].item() * batch_size
+                        total_count += batch_size
+
+                        if i % 12 == 0:  # reduces number of samples to show
+                            pred_phas.append(pred_pha)
+                            true_srcs.append(true_src)
+                            precaptured_bgrs.append(precaptured_bgr)
+                        i += 1
+            mad_error = MetricMAD()(pred_pha, true_pha)
+            pred_phas = pred_phas[0]
+            true_srcs = true_srcs[0]
+            precaptured_bgrs = precaptured_bgrs[0]
+
+            if self.rank == 0:
+                self.writer.add_image(f'hard_valid_pred_pha',
+                                      make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
+                                      self.step)
+                self.writer.add_image(f'hard_valid_true_src',
+                                      make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
+                                      self.step)
+                self.writer.add_image(f'hard_valid_precaptured_bgr',
+                                      make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
+                                      self.step)
+            avg_loss = total_loss / total_count
+            self.log(f'Hard validation set average loss: {avg_loss}')
+            self.log(f'Hard validation set MAD: {mad_error}')
+            self.writer.add_scalar('hard_valid_mad', mad_error, self.step)
             self.model_ddp.train()
         dist.barrier()
 

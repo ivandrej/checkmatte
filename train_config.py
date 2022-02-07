@@ -77,5 +77,8 @@ BGR_FRAME_DATA_PATHS = {
         'train': '/media/andivanov/DATA/DVM_JPEG_nohuman/train',
         'valid': '/media/andivanov/DATA/DVM_JPEG_nohuman/valid',
     },
+    'phone_captures': {
+        'valid': '/media/andivanov/DATA/training/phone_captures_valid'
+    },
     'rvm_model': '/media/andivanov/DATA/training/rvm_mobilenetv3.pth'
 }
