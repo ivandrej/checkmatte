@@ -168,7 +168,9 @@ def convert_video(model,
                     writer_bgr.write(bgr[0], src[0])
 
                 bar.update(src.size(1))
-
+    except Exception as e:
+        print("Failing at frame: ", i)
+        raise e
     finally:
         # Clean up
         if output_composition is not None:

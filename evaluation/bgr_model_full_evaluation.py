@@ -24,6 +24,7 @@ def read_args():
     parser.add_argument('--bgr-integration', type=str, default='attention')
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     parser.add_argument('--num-frames', type=int, default=100)
+    parser.add_argument('--temporal-offset', type=int, default=0)
     parser.add_argument('--num-workers', type=int, default=8)
     parser.add_argument('--skip-compose', action="store_true")
     return parser.parse_args()
@@ -36,7 +37,8 @@ if __name__ == "__main__":
 
     print("Performing inference...")
     perform_experiment.inference(args.experiment_dir, args.load_model, input_dir, args.bgr_source, args.resize,
-                                 output_type='png_sequence', bgr_integration=args.bgr_integration, bgr_offset=0)
+                                 output_type='png_sequence', bgr_integration=args.bgr_integration,
+                                 bgr_offset=args.temporal_offset)
 
     print("Performing evaluation...")
     evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize, metrics=['pha_mad'])
