@@ -41,4 +41,5 @@ if __name__ == "__main__":
                                  bgr_offset=args.temporal_offset)
 
     print("Performing evaluation...")
-    evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize, metrics=['pha_mad'])
+    evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize,
+                                  metrics=['pha_mad', 'pha_bgr_mad', 'pha_fgr_mad'])

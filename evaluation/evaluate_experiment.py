@@ -23,7 +23,7 @@ from tqdm import tqdm
 import composite
 from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD, MetricBgrMAD, MetricFgrMAD
 
-METRICS = ['pha_mad', 'bgr_pha_mad', 'fgr_pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse']
+METRICS = ['pha_mad', 'pha_bgr_mad', 'pha_fgr_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse']
 
 # Returns args object
 def parse_args():
