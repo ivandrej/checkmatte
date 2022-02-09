@@ -231,7 +231,7 @@ class PrecapturedBgrAndPersonSameAugmentation:
         if random.random() < self.prob_blur / 3:
             fgrs, phas = MotionAugmentation.motion_blur(fgrs, phas)
         if random.random() < self.prob_blur / 3:
-            bgrs_ = MotionAugmentation.motion_blur(bgrs, bgrs_)
+            bgrs, bgrs_ = MotionAugmentation.motion_blur(bgrs, bgrs_)
         if random.random() < self.prob_blur / 3:
             fgrs, phas, bgrs, bgrs_ = MotionAugmentation.motion_blur(fgrs, phas, bgrs, bgrs_)
 
