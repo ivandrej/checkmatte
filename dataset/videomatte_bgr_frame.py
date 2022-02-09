@@ -44,9 +44,6 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
             precaptured_bgr = self.read_frame(clip_idx, frame_idx_t)
             precaptured_bgrs.append(precaptured_bgr)
 
-            assert frame_idx_t == bgr_frame_idx_t, f"{frame_idx_t}, {bgr_frame_idx_t}, {frame_count}"
-            assert ((np.array(bgr) == np.array(precaptured_bgr)).all())
-
         return bgrs, precaptured_bgrs
 
     def read_frame(self, clip_idx, frame_idx_t):

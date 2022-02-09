@@ -21,10 +21,10 @@ from PIL import Image
 from tqdm import tqdm
 
 import composite
-from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD
+from evaluation_metrics import MetricMAD, MetricMSE, MetricGRAD, MetricDTSSD, MetricBgrMAD, MetricFgrMAD
 
+METRICS = ['pha_mad', 'bgr_pha_mad', 'fgr_pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse']
 
-METRICS = ['pha_mad', 'pha_mse', 'pha_grad', 'pha_dtssd', 'fgr_mad', 'fgr_mse']
 # Returns args object
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -51,6 +51,8 @@ class Evaluator:
 
     def init_metrics(self):
         self.mad = MetricMAD()
+        self.bgr_mad = MetricBgrMAD()
+        self.fgr_mad = MetricFgrMAD()
         self.mse = MetricMSE()
         self.grad = MetricGRAD()
         self.dtssd = MetricDTSSD()
@@ -113,7 +115,6 @@ class Evaluator:
         assert (len(pred_fgr_frames) == len(pred_pha_frames))
 
         metrics = {metric_name: [] for metric_name in self.metrics}
-
         pred_pha_tm1 = None
         true_pha_tm1 = None
 
@@ -122,10 +123,13 @@ class Evaluator:
             pred_pha = video_frame_to_torch(pred_pha_frames[t], grayscale=True)
             true_pha = video_frame_to_torch(true_pha_frames[t], grayscale=True, resize=args.resize)
 
-            # print(pred_pha.shape, true_pha.shape)
             assert (true_pha.shape == pred_pha.shape)
             if 'pha_mad' in self.metrics:
                 metrics['pha_mad'].append(self.mad(pred_pha, true_pha))
+            if 'pha_bgr_mad' in self.metrics:
+                metrics['pha_bgr_mad'].append(self.bgr_mad(pred_pha, true_pha))
+            if 'pha_fgr_mad' in self.metrics:
+                metrics['pha_fgr_mad'].append(self.fgr_mad(pred_pha, true_pha))
             if 'pha_mse' in self.metrics:
                 metrics['pha_mse'].append(self.mse(pred_pha, true_pha))
             if 'pha_grad' in self.metrics:
@@ -175,6 +179,10 @@ class Evaluator:
             assert (true_pha.shape == pred_pha.shape)
             if 'pha_mad' in self.metrics:
                 metrics['pha_mad'].append(self.mad(pred_pha, true_pha))
+            if 'pha_bgr_mad' in self.metrics:
+                metrics['pha_bgr_mad'].append(self.bgr_mad(pred_pha, true_pha))
+            if 'pha_fgr_mad' in self.metrics:
+                metrics['pha_fgr_mad'].append(self.fgr_mad(pred_pha, true_pha))
             if 'pha_mse' in self.metrics:
                 metrics['pha_mse'].append(self.mse(pred_pha, true_pha))
             if 'pha_grad' in self.metrics:

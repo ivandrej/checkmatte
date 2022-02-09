@@ -9,6 +9,16 @@ class MetricMAD:
     def __call__(self, pred, true):
         return (pred - true).abs_().mean() * 1e3
 
+class MetricBgrMAD:
+    def __call__(self, pred, true):
+        bgr_mask = true == 0
+        return (pred[bgr_mask] - true[bgr_mask]).abs_().mean() * 1e3
+
+class MetricFgrMAD:
+    def __call__(self, pred, true):
+        fgr_mask = true > 0
+        return (pred[fgr_mask] - true[fgr_mask]).abs_().mean() * 1e3
+
 
 class MetricMSE:
     def __call__(self, pred, true):
