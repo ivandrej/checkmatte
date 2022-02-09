@@ -3,7 +3,7 @@ import random
 
 from PIL import Image
 import numpy as np
-from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation
+from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation, PrecapturedBgrAndPersonSameAugmentation
 from dataset.videomatte import VideoMatteDataset
 
 """
@@ -63,7 +63,7 @@ class TemporalOffset:
     def get_frame_offset(self):
         return self.max_offset
 
-class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAugmentation):
+class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAndPersonSameAugmentation):
     def __init__(self, size):
         super().__init__(
             size=size,

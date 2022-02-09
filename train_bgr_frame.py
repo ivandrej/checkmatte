@@ -21,6 +21,7 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
+from dataset.precaptured_bgr_augmentation import PrecapturedBgrAndPersonSameAugmentation
 from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
 from evaluation.evaluation_metrics import MetricMAD
@@ -58,7 +59,7 @@ class Trainer:
         parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='concat')
         parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
         # what kind of transformations to apply to bgr and person frames. Default is no transformations
-        parser.add_argument('--transformations', type=str, choices=['none', 'person_only'], default='none')
+        parser.add_argument('--transformations', type=str, choices=['none', 'person_only', 'same_person_bgr'], default='none')
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
         parser.add_argument('--seq-length-lr', type=int, required=True)
@@ -99,6 +100,8 @@ class Trainer:
         size_lr = (self.args.resolution_lr, self.args.resolution_lr)
 
         if self.args.transformations == 'person_only':
+            train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)
+        elif self.args.transformations == 'same_person_bgr':
             train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)
         elif self.args.transformations == 'none':
             train_augmentation = VideoMattePrecapturedBgrValidAugmentation(self.args.resolution_lr)
