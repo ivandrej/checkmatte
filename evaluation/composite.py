@@ -32,7 +32,6 @@ def composite_fgrs_to_bgrs(base_out_dir, experiment_metadata, args):
     print("Will create {} composed clips".format(len(clips)))
 
     for com_paths in clips:
-        print(com_paths.bgr_path)
         out_dir = os.path.join(base_out_dir, com_paths.clipname)
         print("Creating: ", com_paths.clipname)
         os.makedirs(out_dir, exist_ok=True)
@@ -97,7 +96,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-metadata', type=str, required=True)
     parser.add_argument('--out-dir', type=str, required=True)
-    parser.add_argument('--num-samples', type=int, default=20)
     parser.add_argument('--num-frames', type=int, default=100)
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     args = parser.parse_args()

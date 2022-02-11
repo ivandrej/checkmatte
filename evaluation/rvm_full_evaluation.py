@@ -9,35 +9,30 @@
 import argparse
 import os
 
-import composite
 import evaluate_experiment
-import perform_experiment
+import rvm_perform_experiment
 
 
 def read_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-metadata', type=str, required=True)
     parser.add_argument('--experiment-dir', type=str, required=True)
-    parser.add_argument('--load-model', type=str, required=True)
-    parser.add_argument('--resize', type=int, default=None, nargs=2)
+    parser.add_argument('--input-dir', type=str, required=True)
+    parser.add_argument('--resize', type=int, required=True, nargs=2)
     parser.add_argument('--num-frames', type=int, default=100)
-    parser.add_argument('--num-workers', type=int, default=48)
+    parser.add_argument('--num-workers', type=int, default=8)
     parser.add_argument('--skip-compose', action="store_true")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = read_args()
-    input_dir = os.path.join(args.experiment_dir, "input")
+    input_dir = args.input_dir
     out_dir = os.path.join(args.experiment_dir, "out")
-    if not args.skip_compose:
-        print("Composing foregrounds onto backgrounds...")
-        composite.composite_fgrs_to_bgrs(input_dir, args.experiment_metadata, args)
-    else:
-        print("Skipping compose step...")
 
     print("Performing inference...")
-    perform_experiment.inference(args.experiment_dir, args.load_model)
+    rvm_perform_experiment.inference(args.experiment_dir, input_dir, args.resize)
 
     print("Performing evaluation...")
-    evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize)
+    evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize,
+                                  metrics=['pha_mad', 'pha_bgr_mad', 'pha_fgr_mad'])
