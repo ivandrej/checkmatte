@@ -92,9 +92,9 @@ class Evaluator:
         columns = list(self.results[0][2].keys()) + ["bgr_type"]
         df = pd.DataFrame.from_dict(output_dict, orient="index", columns=columns)
 
-        df.loc["dynamic_mean"] = df.loc[df.bgr_type == "dynamic"].mean()
-        df.loc["semi_dynamic_mean"] = df.loc[df.bgr_type == "semi_dynamic"].mean()
-        df.loc["static_mean"] = df.loc[df.bgr_type == "static"].mean()
+        # df.loc["dynamic_mean"] = df.loc[df.bgr_type == "dynamic"].mean()
+        # df.loc["semi_dynamic_mean"] = df.loc[df.bgr_type == "semi_dynamic"].mean()
+        # df.loc["static_mean"] = df.loc[df.bgr_type == "static"].mean()
 
         df.to_csv(os.path.join(self.pred_dir, "metrics.csv"), index_label="clipname")
 

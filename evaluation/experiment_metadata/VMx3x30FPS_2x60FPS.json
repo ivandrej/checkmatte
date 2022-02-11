@@ -1,0 +1,28 @@
+{
+    "bgr_paths": {
+        "30FPS": [
+            "/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/room",
+            "/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/yard",
+            "/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/stairs"
+
+        ],
+        "60FPS": [
+           "/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/mountain_sea_jog3",
+           "/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/house_tour1"
+        ]
+    },
+    "fgr_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0004",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0003",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0002",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0001",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/fgr/0000"
+    ],
+    "pha_paths": [
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0004",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0003",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0002",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0001",
+        "/media/andivanov/DATA/VideoMatte240K_JPEG_SD/test/pha/0000"
+    ]
+}

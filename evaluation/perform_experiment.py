@@ -27,23 +27,20 @@ File structure:
 """
 
 
-def inference(experiment_dir, load_model, input_dir, bgr_source, input_resize,
+def inference(experiment_dir, load_model, input_dir, clips, input_resize,
               output_type="png_sequence", bgr_integration='attention', bgr_offset=0):
-    if load_model == "RVM":
-        model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
-    else:
-        # TODO: Allow for RVM model too
-        model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=bgr_integration).eval().cuda()
-        model.load_state_dict(torch.load(load_model))
+    model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=bgr_integration).eval().cuda()
+    model.load_state_dict(torch.load(load_model))
 
     matcher = FixedOffsetMatcher(bgr_offset)
 
     if input_dir is None:
         input_dir = os.path.join(experiment_dir, "input")
 
-    # For each sample (directory with frames) in experiment dir
-    for sample_name in sorted(os.listdir(input_dir)):
-        out_dir = os.path.join(experiment_dir, "out", sample_name)
+    for clip in clips:
+        bgr_source = clip.bgr_path
+        sample_name = clip.clipname
+        out_dir = os.path.join(experiment_dir, sample_name)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 

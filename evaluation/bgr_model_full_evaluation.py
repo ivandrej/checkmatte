@@ -9,14 +9,13 @@
 import argparse
 import os
 
-import composite
+from composite import read_metadata
 import evaluate_experiment
 import perform_experiment
 
 
 def read_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--bgr-source', type=str, required=True)
     parser.add_argument('--experiment-metadata', type=str, required=True)
     parser.add_argument('--experiment-dir', type=str, required=True)
     parser.add_argument('--input-dir', type=str, required=True)
@@ -33,12 +32,14 @@ def read_args():
 if __name__ == "__main__":
     args = read_args()
     input_dir = args.input_dir
-    out_dir = os.path.join(args.experiment_dir, "out")
+    out_dir = os.path.join(args.experiment_dir)
+
+    clips = read_metadata(args.experiment_metadata)
 
     print("Performing inference...")
-    perform_experiment.inference(args.experiment_dir, args.load_model, input_dir, args.bgr_source, args.resize,
-                                 output_type='png_sequence', bgr_integration=args.bgr_integration,
-                                 bgr_offset=args.temporal_offset)
+    # perform_experiment.inference(args.experiment_dir, args.load_model, input_dir, clips, args.resize,
+    #                              output_type='png_sequence', bgr_integration=args.bgr_integration,
+    #                              bgr_offset=args.temporal_offset)
 
     print("Performing evaluation...")
     evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize,
