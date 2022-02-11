@@ -92,9 +92,21 @@ class Evaluator:
         columns = list(self.results[0][2].keys()) + ["bgr_type"]
         df = pd.DataFrame.from_dict(output_dict, orient="index", columns=columns)
 
-        # df.loc["dynamic_mean"] = df.loc[df.bgr_type == "dynamic"].mean()
-        # df.loc["semi_dynamic_mean"] = df.loc[df.bgr_type == "semi_dynamic"].mean()
-        # df.loc["static_mean"] = df.loc[df.bgr_type == "static"].mean()
+        df['fgr'] = df.index.map(lambda x: x.split("_", 1)[0])
+        df['bgr'] = df.index.map(lambda x: "".join(x.split("_", 1)[1:]))
+
+        fgr_mean = df.groupby(['fgr']).mean()
+        fgr_mean.index.rename('clipname', inplace=True)
+
+        bgr_mean = df.groupby(['bgr']).mean()
+        bgr_mean.index.rename('clipname', inplace=True)
+
+        bgr_type_mean = df.groupby(['bgr_type']).mean()
+        bgr_type_mean.index.rename('clipname', inplace=True)
+
+        df = df.append(fgr_mean)
+        df = df.append(bgr_mean)
+        df = df.append(bgr_type_mean)
 
         df.to_csv(os.path.join(self.pred_dir, "metrics.csv"), index_label="clipname")
 

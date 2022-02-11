@@ -37,9 +37,9 @@ if __name__ == "__main__":
     clips = read_metadata(args.experiment_metadata)
 
     print("Performing inference...")
-    # perform_experiment.inference(args.experiment_dir, args.load_model, input_dir, clips, args.resize,
-    #                              output_type='png_sequence', bgr_integration=args.bgr_integration,
-    #                              bgr_offset=args.temporal_offset)
+    perform_experiment.inference(args.experiment_dir, args.load_model, input_dir, clips, args.resize,
+                                 output_type='png_sequence', bgr_integration=args.bgr_integration,
+                                 bgr_offset=args.temporal_offset)
 
     print("Performing evaluation...")
     evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize,
