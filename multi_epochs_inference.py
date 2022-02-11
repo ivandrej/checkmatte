@@ -8,7 +8,7 @@ import torch
 
 from model import model, model_concat_bgr
 
-from inference import convert_video
+from inference import convert_video, FixedOffsetMatcher
 
 import argparse
 
@@ -37,6 +37,8 @@ for epoch in args.epochs:
     model.load_state_dict(torch.load(os.path.join(args.load_model, f"epoch-{epoch}.pth")))
     out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
 
+    matcher = FixedOffsetMatcher(0)
+
     if args.output_type == 'video':
         convert_video(
             model,  # The loaded model, can be on any device (cpu or cuda).
@@ -58,6 +60,7 @@ for epoch in args.epochs:
         convert_video(
             model,  # The loaded model, can be on any device (cpu or cuda).
             input_source=args.input_source,
+            matcher=matcher,
             bgr_source=args.bgr_source,
             input_resize=args.resize,  # [Optional] Resize the input (also the output).
             downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
