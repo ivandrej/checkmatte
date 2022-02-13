@@ -209,11 +209,12 @@ class Trainer:
         self.log('Initializing model')
         self.model = MattingNetwork(self.args.model_variant,
                                     pretrained_backbone=True,
-                                    bgr_integration=self.args.bgr_integration).to(self.rank)
+                                    bgr_integration=self.args.bgr_integration,
+                                    pretrained_on_rvm=False).to(self.rank)
 
         # Freeze person backbone
-        for param in self.model.backbone.parameters():
-            param.requires_grad = False
+        # for param in self.model.backbone.parameters():
+        #     param.requires_grad = False
 
         if self.args.checkpoint:
             self.log(f'Restoring from checkpoint: {self.args.checkpoint}')
@@ -223,9 +224,9 @@ class Trainer:
         self.model = nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
         param_lrs = [
-            # {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+            {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
             {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
-            # {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
+            {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
