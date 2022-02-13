@@ -92,6 +92,8 @@ class Evaluator:
         columns = list(self.results[0][2].keys()) + ["bgr_type"]
         df = pd.DataFrame.from_dict(output_dict, orient="index", columns=columns)
 
+        total_mean = df.mean()
+
         df['fgr'] = df.index.map(lambda x: x.split("_", 1)[0])
         df['bgr'] = df.index.map(lambda x: "".join(x.split("_", 1)[1:]))
 
@@ -107,6 +109,8 @@ class Evaluator:
         df = df.append(fgr_mean)
         df = df.append(bgr_mean)
         df = df.append(bgr_type_mean)
+
+        df.loc['mean'] = total_mean
 
         df.to_csv(os.path.join(self.pred_dir, "metrics.csv"), index_label="clipname")
 
