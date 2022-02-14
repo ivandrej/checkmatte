@@ -212,8 +212,8 @@ class Trainer:
                                     bgr_integration=self.args.bgr_integration).to(self.rank)
 
         # Freeze person backbone
-        for param in self.model.backbone.parameters():
-            param.requires_grad = False
+        # for param in self.model.backbone.parameters():
+        #     param.requires_grad = False
 
         if self.args.checkpoint:
             self.log(f'Restoring from checkpoint: {self.args.checkpoint}')
@@ -223,9 +223,9 @@ class Trainer:
         self.model = nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
         param_lrs = [
-            # {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+            {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
             {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
-            # {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
+            {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
             {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
@@ -283,6 +283,18 @@ class Trainer:
             loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
 
         self.scaler.scale(loss['total']).backward()
+
+        # print(self.model_ddp.module.backbone_bgr.features[8].block[0][0].weight.shape)
+        # print(self.model_ddp.module.backbone_bgr.features[15].block[0][0].weight.shape)
+        # print(self.model_ddp.module.backbone_bgr.features[16][0].weight.shape)
+        person_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
+        bgr_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
+
+        self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
+        self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
+
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.optimizer.zero_grad()
