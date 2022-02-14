@@ -287,9 +287,9 @@ class Trainer:
         # print(self.model_ddp.module.backbone_bgr.features[8].block[0][0].weight.shape)
         # print(self.model_ddp.module.backbone_bgr.features[15].block[0][0].weight.shape)
         # print(self.model_ddp.module.backbone_bgr.features[16][0].weight.shape)
-        person_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
         bgr_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
+        person_encoder_grad_norm = torch.linalg.vector_norm(
             torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
 
         self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
