@@ -30,7 +30,8 @@ if not os.path.exists(args.out_dir):
 for epoch in args.epochs:
     if args.bgr_source:
         model = model_concat_bgr.MattingNetwork("mobilenetv3",
-                                                bgr_integration=args.bgr_integration).eval().cuda()
+                                                bgr_integration=args.bgr_integration,
+                                                pretrained_on_rvm=False).eval().cuda()
     else:
         model = model.MattingNetwork("mobilenetv3").eval().cuda()
 

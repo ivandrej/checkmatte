@@ -284,6 +284,18 @@ class Trainer:
             loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
 
         self.scaler.scale(loss['total']).backward()
+
+        # print(self.model_ddp.module.backbone_bgr.features[8].block[0][0].weight.shape)
+        # print(self.model_ddp.module.backbone_bgr.features[15].block[0][0].weight.shape)
+        # print(self.model_ddp.module.backbone_bgr.features[16][0].weight.shape)
+        bgr_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
+        person_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
+
+        self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
+        self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
+
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.optimizer.zero_grad()
