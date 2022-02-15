@@ -74,6 +74,7 @@ class Trainer:
         parser.add_argument('--log-dir', type=str, required=True)
         parser.add_argument('--log-train-loss-interval', type=int, default=20)
         parser.add_argument('--log-train-images-interval', type=int, default=500)
+        parser.add_argument('--log-randombgr-mad-interval', type=int, default=100)
         # Checkpoint loading and saving
         parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, required=True)
@@ -283,6 +284,12 @@ class Trainer:
         with autocast(enabled=not self.args.disable_mixed_precision):
             pred_fgr, pred_pha = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:2]
             loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
+
+            if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
+                random_bgr = torch.zeros(true_src.shape, device=self.rank)
+                _, pred_pha_random_bgr = self.model_ddp(true_src, random_bgr, downsample_ratio=downsample_ratio)[:2]
+                random_bgr_mad = MetricMAD()(pred_pha_random_bgr, true_pha)
+                self.writer.add_scalar(f'random_bgr_mad', random_bgr_mad, self.step)
 
         self.scaler.scale(loss['total']).backward()
 
