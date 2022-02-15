@@ -213,13 +213,8 @@ class Trainer:
                                     bgr_integration=self.args.bgr_integration,
                                     pretrained_on_rvm=self.args.pretrained_on_rvm).to(self.rank)
 
-        # Freeze person backbone
-        if self.args.pretrained_on_rvm:
-            print("Will initialize to RVM weights")
-            for param in self.model.backbone.parameters():
-                param.requires_grad = False
-        else:
-            print("Training from scratch")
+        # for param in self.model.backbone.parameters():
+        #     param.requires_grad = False
 
         if self.args.checkpoint:
             self.log(f'Restoring from checkpoint: {self.args.checkpoint}')
@@ -237,9 +232,9 @@ class Trainer:
         ]
         if self.model.spatial_attention:
             param_lrs.append({'params': self.model.spatial_attention.parameters(), 'lr': self.args.learning_rate_backbone})
-        if not self.args.pretrained_on_rvm:
-            param_lrs.append({'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone})
-            param_lrs.append({'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp})
+
+        param_lrs.append({'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone})
+        param_lrs.append({'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp})
 
         self.optimizer = Adam(param_lrs)
         self.scaler = GradScaler()
