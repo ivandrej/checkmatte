@@ -264,11 +264,27 @@ class Trainer:
                     true_img, true_seg = self.load_next_seg_video_sample()
                     self.train_seg(true_img, true_seg, log_label='seg_video')
 
+                if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
+                    self.test_on_random_bgr(true_fgr, true_pha, true_bgr, downsample_ratio=1)
+
                 if self.step % self.args.checkpoint_save_interval == 0:
                     self.save()
 
                 self.step += 1
                 # print("Step: ", self.step)
+
+    def test_on_random_bgr(self, true_fgr, true_pha, true_bgr, downsample_ratio):
+        true_fgr = true_fgr.to(self.rank, non_blocking=True)
+        true_pha = true_pha.to(self.rank, non_blocking=True)
+        true_bgr = true_bgr.to(self.rank, non_blocking=True)
+        true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+
+        random_bgr = torch.zeros(true_src.shape, device=self.rank)
+        _, pred_pha_random_bgr = self.model_ddp(true_src,
+                                                random_bgr,
+                                                downsample_ratio=downsample_ratio)[:2]
+        random_bgr_mad = MetricMAD()(pred_pha_random_bgr, true_pha)
+        self.writer.add_scalar(f'random_bgr_mad', random_bgr_mad, self.step)
 
     def train_mat(self, true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
@@ -284,12 +300,6 @@ class Trainer:
         with autocast(enabled=not self.args.disable_mixed_precision):
             pred_fgr, pred_pha = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:2]
             loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
-
-            if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
-                random_bgr = torch.zeros(true_src.shape, device=self.rank)
-                _, pred_pha_random_bgr = self.model_ddp(true_src, random_bgr, downsample_ratio=downsample_ratio)[:2]
-                random_bgr_mad = MetricMAD()(pred_pha_random_bgr, true_pha)
-                self.writer.add_scalar(f'random_bgr_mad', random_bgr_mad, self.step)
 
         self.scaler.scale(loss['total']).backward()
 
