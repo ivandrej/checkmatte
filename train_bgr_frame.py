@@ -74,7 +74,7 @@ class Trainer:
         parser.add_argument('--log-dir', type=str, required=True)
         parser.add_argument('--log-train-loss-interval', type=int, default=20)
         parser.add_argument('--log-train-images-interval', type=int, default=500)
-        parser.add_argument('--log-randombgr-mad-interval', type=int, default=100)
+        parser.add_argument('--log-randombgr-mad-interval', type=int, default=None)
         # Checkpoint loading and saving
         parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, required=True)
@@ -264,6 +264,7 @@ class Trainer:
                     true_img, true_seg = self.load_next_seg_video_sample()
                     self.train_seg(true_img, true_seg, log_label='seg_video')
 
+                # TODO: Why does this take up so much RAM
                 if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
                     self.test_on_random_bgr(true_fgr, true_pha, true_bgr, downsample_ratio=1)
 
