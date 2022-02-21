@@ -77,33 +77,33 @@ python train_rvm.py \
 
 
 import argparse
-import torch
-import random
 import os
-from torch import nn
+import random
+
+import torch
 from torch import distributed as dist
 from torch import multiprocessing as mp
+from torch import nn
+from torch.cuda.amp import autocast, GradScaler
 from torch.nn import functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Adam
-from torch.cuda.amp import autocast, GradScaler
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid
 from torchvision.transforms.functional import center_crop
+from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
 from dataset.videomatte import (
     VideoMatteDataset,
-    VideoMatteTrainAugmentation,
-    VideoMatteValidAugmentation,
+    VideoMatteSpecializedNoAugmentation,
 )
-
+from evaluation.evaluation_metrics import MetricMAD
 from model.model import MattingNetwork
-from train_config import RVM_DATA_PATHS
-from train_loss import matting_loss, segmentation_loss
+from train_config import BGR_FRAME_DATA_PATHS
+from train_loss import matting_loss
 
 
 class Trainer:
@@ -170,28 +170,36 @@ class Trainer:
         
         # Matting datasets:
         self.dataset_lr_train = VideoMatteDataset(
-            videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
-            background_video_dir=RVM_DATA_PATHS['background_videos']['train'],
+            videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['train'],
+            background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['train'],
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMatteTrainAugmentation(size_lr))
-        if self.args.train_hr:
-            self.dataset_hr_train = VideoMatteDataset(
-                videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
-                background_video_dir=RVM_DATA_PATHS['background_videos']['train'],
-                size=self.args.resolution_hr,
-                seq_length=self.args.seq_length_hr,
-                seq_sampler=TrainFrameSampler(),
-                transform=VideoMatteTrainAugmentation(size_hr))
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr))
+        # if self.args.train_hr:
+        #     self.dataset_hr_train = VideoMatteDataset(
+        #         videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
+        #         background_video_dir=RVM_DATA_PATHS['background_videos']['train'],
+        #         size=self.args.resolution_hr,
+        #         seq_length=self.args.seq_length_hr,
+        #         seq_sampler=TrainFrameSampler(),
+        #         transform=VideoMatteValidAugmentation(size_hr))
         self.dataset_valid = VideoMatteDataset(
-            videomatte_dir=RVM_DATA_PATHS['videomatte']['valid'],
-            background_video_dir=RVM_DATA_PATHS['background_videos']['valid'],
+            videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
+            background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['valid'],
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMatteValidAugmentation(size_hr if self.args.train_hr else size_lr))
-            
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr))
+        # Dataset of dynamic backgrounds - harder cases than most of the training samples
+        self.dataset_valid_hard = VideoMatteDataset(
+            videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
+            background_video_dir=BGR_FRAME_DATA_PATHS['phone_captures']['valid'],
+            size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
+            seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
+            seq_sampler=ValidFrameSampler(),
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr))
+
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
             dataset=self.dataset_lr_train,
@@ -218,6 +226,11 @@ class Trainer:
                 pin_memory=True)
         self.dataloader_valid = DataLoader(
             dataset=self.dataset_valid,
+            batch_size=self.args.batch_size_per_gpu,
+            num_workers=self.args.num_workers,
+            pin_memory=True)
+        self.dataloader_valid_hard = DataLoader(
+            dataset=self.dataset_valid_hard,
             batch_size=self.args.batch_size_per_gpu,
             num_workers=self.args.num_workers,
             pin_memory=True)
@@ -252,6 +265,7 @@ class Trainer:
             self.step = epoch * len(self.dataloader_lr_train)
             if not self.args.disable_validation:
                 self.validate()
+                self.validate_hard()
             
             self.log(f'Training epoch: {epoch}')
             for true_fgr, true_pha, true_bgr in tqdm(self.dataloader_lr_train, disable=self.args.disable_progress_bar, dynamic_ncols=True):
@@ -272,7 +286,7 @@ class Trainer:
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
         true_bgr = true_bgr.to(self.rank, non_blocking=True)
-        true_fgr, true_pha, true_bgr = self.random_crop(true_fgr, true_pha, true_bgr)
+        # true_fgr, true_pha, true_bgr = self.random_crop(true_fgr, true_pha, true_bgr)
         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
         
         with autocast(enabled=not self.args.disable_mixed_precision):
@@ -323,6 +337,54 @@ class Trainer:
             avg_loss = total_loss / total_count
             self.log(f'Validation set average loss: {avg_loss}')
             self.writer.add_scalar('valid_loss', avg_loss, self.step)
+            self.model_ddp.train()
+        dist.barrier()
+
+    def validate_hard(self):
+        if self.rank == 0:
+            self.log(f'Validating hard at the start of epoch: {self.epoch}')
+            self.model_ddp.eval()
+            total_loss, total_count = 0, 0
+            pred_phas = []
+            true_srcs = []
+            i = 0
+            with torch.no_grad():
+                with autocast(enabled=not self.args.disable_mixed_precision):
+                    for true_fgr, true_pha, true_bgr in tqdm(self.dataloader_valid_hard,
+                                                                              disable=self.args.disable_progress_bar,
+                                                                              dynamic_ncols=True):
+                        true_fgr = true_fgr.to(self.rank, non_blocking=True)
+                        true_pha = true_pha.to(self.rank, non_blocking=True)
+                        true_bgr = true_bgr.to(self.rank, non_blocking=True)
+                        true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+                        if total_count == 0:  # only print once
+                            print("Validation hard batch shape: ", true_src.shape)
+
+                        batch_size = true_src.size(0)
+                        pred_fgr, pred_pha = self.model(true_src)[:2]
+                        total_loss += matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)[
+                                          'total'].item() * batch_size
+                        total_count += batch_size
+
+                        if i % 12 == 0:  # reduces number of samples to show
+                            pred_phas.append(pred_pha)
+                            true_srcs.append(true_src)
+                        i += 1
+            mad_error = MetricMAD()(pred_pha, true_pha)
+            pred_phas = pred_phas[0]
+            true_srcs = true_srcs[0]
+
+            if self.rank == 0:
+                self.writer.add_image(f'hard_valid_pred_pha',
+                                      make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
+                                      self.step)
+                self.writer.add_image(f'hard_valid_true_src',
+                                      make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
+                                      self.step)
+            avg_loss = total_loss / total_count
+            self.log(f'Hard validation set average loss: {avg_loss}')
+            self.log(f'Hard validation set MAD: {mad_error}')
+            self.writer.add_scalar('hard_valid_mad', mad_error, self.step)
             self.model_ddp.train()
         dist.barrier()
     
