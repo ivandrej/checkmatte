@@ -70,14 +70,13 @@ class MattingNetwork(nn.Module):
             bgr_sm = bgr
 
         f1, f2, f3, f4 = self.backbone(src_sm)
-        f4 = self.aspp(f4)
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
-        f4_bgr = self.aspp_bgr(f4_bgr)
 
-        bgr_guidance = self.spatial_attention(f4, f4_bgr)
-        f4_combined = bgr_guidance + f4
+        bgr_guidance_f3 = self.spatial_attention(f3, f3_bgr)
+        f3_combined = bgr_guidance_f3 + f3
+        f4 = self.aspp(f4)
 
-        hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
+        hid, *rec = self.decoder(src_sm, f1, f2, f3_combined, f4, r1, r2, r3, r4)
 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)
