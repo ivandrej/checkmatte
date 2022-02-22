@@ -17,7 +17,6 @@ class MattingNetwork(nn.Module):
     def __init__(self,
                  variant: str = 'mobilenetv3',
                  refiner: str = 'deep_guided_filter',
-                 bgr_integration: str = 'concat',
                  pretrained_on_rvm=True,
                  pretrained_backbone: bool = False):
         super().__init__()
@@ -32,11 +31,8 @@ class MattingNetwork(nn.Module):
             self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
-            self.spatial_attention = None
-            if bgr_integration == "attention":
-                self.spatial_attention = SpatialAttention(128, 128)
+            self.spatial_attention = SpatialAttention(128, 128)
 
-            self.project_concat = ProjectionWithBnRelu(256, 128)
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
             self.backbone = ResNet50Encoder(pretrained_backbone)
@@ -78,17 +74,10 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
-        if self.spatial_attention:
-            bgr_guidance = self.spatial_attention(f4, f4_bgr)
-        else:
-            bgr_guidance = f4_bgr
+        bgr_guidance = self.spatial_attention(f4, f4_bgr)
+        f4_combined = bgr_guidance + f4
 
-        # print("ASPP features: ", f4_bgr.shape, f4.shape)
-
-        f4_concat = torch.cat((bgr_guidance, f4), dim=2)
-        f4_concat = self.project_concat(f4_concat)
-
-        hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_concat, r1, r2, r3, r4)
+        hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)
@@ -152,28 +141,5 @@ class SpatialAttention(nn.Module):
             return self.forward_time_series(p, b)
         else:
             return self.forward_single_frame(p, b)
-
-
-class ProjectionWithBnRelu(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(True)
-        )
-
-    def forward_single_frame(self, x):
-        return self.conv(x)
-
-    def forward_time_series(self, x):
-        B, T = x.shape[:2]
-        return self.conv(x.flatten(0, 1)).unflatten(0, (B, T))
-
-    def forward(self, x):
-        if x.ndim == 5:
-            return self.forward_time_series(x)
-        else:
-            return self.forward_single_frame(x)
 
 
