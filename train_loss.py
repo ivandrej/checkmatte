@@ -30,6 +30,22 @@ def matting_loss(pred_fgr, pred_pha, true_fgr, true_pha):
                   + loss['fgr_l1'] + loss['fgr_coherence']
     return loss
 
+def pha_loss(pred_pha, true_pha):
+    """
+    Args:
+        pred_pha: Shape(B, T, 1, H, W)
+        true_pha: Shape(B, T, 1, H, W)
+    """
+    loss = dict()
+    # Alpha losses
+    loss['pha_l1'] = F.l1_loss(pred_pha, true_pha)
+    loss['pha_laplacian'] = laplacian_loss(pred_pha.flatten(0, 1), true_pha.flatten(0, 1))
+    loss['pha_coherence'] = F.mse_loss(pred_pha[:, 1:] - pred_pha[:, :-1],
+                                       true_pha[:, 1:] - true_pha[:, :-1]) * 5
+    # Total
+    loss['total'] = loss['pha_l1'] + loss['pha_coherence'] + loss['pha_laplacian']
+    return loss
+
 def segmentation_loss(pred_seg, true_seg):
     """
     Args:

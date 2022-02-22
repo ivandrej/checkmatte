@@ -124,7 +124,7 @@ class SpatialAttention(nn.Module):
     def forward_single_frame(self, p, b):
         assert(p.shape == b.shape)
         H, W = p.shape[-2:]
-        # query = person frames, key = background frames
+        # query = person frames, key = background frames, value = background frames
         query = self.query_conv(p).flatten(2, 3)  # B x C x N
         query = query.permute(0, 2, 1)  # B x N x C
         key = self.key_conv(b).flatten(2, 3)  # B x C x N
