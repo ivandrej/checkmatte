@@ -31,7 +31,7 @@ class MattingNetwork(nn.Module):
             self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
-            self.spatial_attention = SpatialAttention(128, 128)
+            self.spatial_attention = SpatialAttention(40, 40)
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:

@@ -291,8 +291,10 @@ class Trainer:
         self.scaler.scale(loss['total']).backward()
 
         # TODO: Move to a separate method
+
+        # f3 is the output of features[6] in mobile net
         bgr_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
+            torch.flatten(self.model_ddp.module.backbone_bgr.features[6].block[0][0].weight.grad))
         self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
 
         person_encoder_grad_norm = torch.linalg.vector_norm(
