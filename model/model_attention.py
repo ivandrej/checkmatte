@@ -18,7 +18,8 @@ class MattingNetwork(nn.Module):
                  variant: str = 'mobilenetv3',
                  refiner: str = 'deep_guided_filter',
                  pretrained_on_rvm=True,
-                 pretrained_backbone: bool = False):
+                 pretrained_backbone: bool = False,
+                 attention_visualizer=None):
         super().__init__()
         assert variant in ['mobilenetv3', 'resnet50']
         assert refiner in ['fast_guided_filter', 'deep_guided_filter']
@@ -31,7 +32,7 @@ class MattingNetwork(nn.Module):
             self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
-            self.spatial_attention = SpatialAttention(128, 128)
+            self.spatial_attention = SpatialAttention(128, 128, attention_visualizer)
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
@@ -104,8 +105,9 @@ class MattingNetwork(nn.Module):
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, attention_visualizer):
         super().__init__()
+        self.attention_visualizer = attention_visualizer
         self.query_conv = nn.Conv2d(in_channels, out_channels, 1)
         self.key_conv = nn.Conv2d(in_channels, out_channels, 1)
         self.softmax = nn.Softmax(dim=-1)
@@ -125,6 +127,8 @@ class SpatialAttention(nn.Module):
         out = torch.bmm(attention, value)  # B x N x C
         out = out.permute(0, 2, 1)  # B x C x N
         out = out.unflatten(-1, (H, W))  # B x C x H x W
+
+        self.attention_visualizer(attention, H, W)
 
         return out
 

@@ -12,6 +12,8 @@ from inference import convert_video, FixedOffsetMatcher
 
 import argparse
 
+from visualize_attention import Visualizer
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)
 parser.add_argument('--bgr-source', type=str, default=None)
@@ -28,10 +30,14 @@ if not os.path.exists(args.out_dir):
     os.makedirs(args.out_dir)
 
 for epoch in args.epochs:
+    out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
+
     if args.bgr_source:
         if args.bgr_integration == 'attention':
+            visualizer = Visualizer(out_dir)
             model = model_attention.MattingNetwork("mobilenetv3",
-                                                    pretrained_on_rvm=False).eval().cuda()
+                                                   pretrained_on_rvm=False,
+                                                   attention_visualizer=visualizer).eval().cuda()
         else:
             model = model_concat_bgr.MattingNetwork("mobilenetv3",
                                                     bgr_integration=args.bgr_integration,
@@ -40,8 +46,6 @@ for epoch in args.epochs:
         model = model.MattingNetwork("mobilenetv3").eval().cuda()
 
     model.load_state_dict(torch.load(os.path.join(args.load_model, f"epoch-{epoch}.pth")))
-    out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
-
     matcher = FixedOffsetMatcher(0)
 
     if args.output_type == 'video':
@@ -78,4 +82,3 @@ for epoch in args.epochs:
             seq_chunk=12,  # Process n frames at once for better parallelism.
             progress=True  # Print conversion progress.
         )
-
