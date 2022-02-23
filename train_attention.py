@@ -260,13 +260,8 @@ class Trainer:
                 self.step += 1
                 # print("Step: ", self.step)
 
-    def test_on_random_bgr(self, true_fgr, true_pha, true_bgr, downsample_ratio):
-        true_fgr = true_fgr.to(self.rank, non_blocking=True)
-        true_pha = true_pha.to(self.rank, non_blocking=True)
-        true_bgr = true_bgr.to(self.rank, non_blocking=True)
-        true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
-
-        random_bgr = torch.zeros(true_src.shape, device=self.rank)
+    def test_on_random_bgr(self, true_src, true_pha, downsample_ratio):
+        random_bgr = torch.zeros(true_src.shape).to(self.rank, non_blocking=True)
         _, pred_pha_random_bgr = self.model_ddp(true_src,
                                                 random_bgr,
                                                 downsample_ratio=downsample_ratio)[:2]
@@ -309,6 +304,9 @@ class Trainer:
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.optimizer.zero_grad()
+
+        if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
+            self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
 
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
