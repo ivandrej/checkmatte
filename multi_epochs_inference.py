@@ -6,7 +6,7 @@ import sys
 
 import torch
 
-from model import model, model_concat_bgr
+from model import model, model_concat_bgr, model_attention
 
 from inference import convert_video, FixedOffsetMatcher
 
@@ -29,9 +29,13 @@ if not os.path.exists(args.out_dir):
 
 for epoch in args.epochs:
     if args.bgr_source:
-        model = model_concat_bgr.MattingNetwork("mobilenetv3",
-                                                bgr_integration=args.bgr_integration,
-                                                pretrained_on_rvm=False).eval().cuda()
+        if args.bgr_integration == 'attention':
+            model = model_attention.MattingNetwork("mobilenetv3",
+                                                    pretrained_on_rvm=False).eval().cuda()
+        else:
+            model = model_concat_bgr.MattingNetwork("mobilenetv3",
+                                                    bgr_integration=args.bgr_integration,
+                                                    pretrained_on_rvm=False).eval().cuda()
     else:
         model = model.MattingNetwork("mobilenetv3").eval().cuda()
 
