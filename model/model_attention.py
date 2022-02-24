@@ -128,7 +128,7 @@ class SpatialAttention(nn.Module):
         out = out.permute(0, 2, 1)  # B x C x N
         out = out.unflatten(-1, (H, W))  # B x C x H x W
 
-        self.attention_visualizer(attention, H, W)
+        self.attention_visualizer(attention.view(-1, H, W, H, W))
 
         return out
 
