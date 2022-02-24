@@ -5,9 +5,11 @@ from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Tuple
+
+from torchvision.transforms.functional import to_pil_image
 from tqdm.auto import tqdm
 
-from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, ImagePairSequenceWriter
+from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImagePairSequenceWriter
 
 
 # TODO: Move to separate class
@@ -21,9 +23,33 @@ class FixedOffsetMatcher:
     def match(self, i):
         return i + self.offset
 
+"""
+    Outputs single frame of a video
+"""
+class ImageSequenceWriter:
+    def __init__(self, path, frameid, extension='jpg'):
+        self.path = path
+        self.target_frameid = frameid
+        self.extension = extension
+        self.counter = 0
+        os.makedirs(path, exist_ok=True)
+
+    def write(self, frames, epoch):
+        # frames: [T, C, H, W]
+        for t in range(frames.shape[0]):
+            if self.counter == self.target_frameid:
+                to_pil_image(frames[t]).save(os.path.join(
+                    self.path, str(epoch).zfill(4) + '.' + self.extension))
+            self.counter += 1
+
+    def close(self):
+        pass
+
 
 def convert_video(model,
                   input_source: str,
+                  frameid: int,
+                  epoch: int,
                   matcher: FixedOffsetMatcher = None,
                   bgr_source: str = None,
                   input_resize: Optional[Tuple[int, int]] = None,
@@ -94,34 +120,14 @@ def convert_video(model,
             bgr = transform(bgr)
         bgrs.append(bgr)
 
-    # Initialize writers
-    if output_type == 'video':
-        frame_rate = source.frame_rate if isinstance(source, VideoReader) else 30
-        output_video_mbps = 1 if output_video_mbps is None else output_video_mbps
-        if output_composition is not None:
-            writer_com = VideoWriter(
-                path=output_composition,
-                frame_rate=frame_rate,
-                bit_rate=int(output_video_mbps * 1000000))
-        if output_alpha is not None:
-            writer_pha = VideoWriter(
-                path=output_alpha,
-                frame_rate=frame_rate,
-                bit_rate=int(output_video_mbps * 1000000))
-        if output_foreground is not None:
-            writer_fgr = VideoWriter(
-                path=output_foreground,
-                frame_rate=frame_rate,
-                bit_rate=int(output_video_mbps * 1000000))
-    else:
-        if output_composition is not None:
-            writer_com = ImageSequenceWriter(output_composition, 'png')
-        if output_alpha is not None:
-            writer_pha = ImageSequenceWriter(output_alpha, 'png')
-        if output_foreground is not None:
-            writer_fgr = ImageSequenceWriter(output_foreground, 'png')
-        if bgr_src_pairs is not None:
-            writer_bgr = ImagePairSequenceWriter(bgr_src_pairs, 'png')
+    if output_composition is not None:
+        writer_com = ImageSequenceWriter(output_composition, 'png')
+    if output_alpha is not None:
+        writer_pha = ImageSequenceWriter(output_alpha, frameid, 'png')
+    if output_foreground is not None:
+        writer_fgr = ImageSequenceWriter(output_foreground, 'png')
+    if bgr_src_pairs is not None:
+        writer_bgr = ImagePairSequenceWriter(bgr_src_pairs, 'png')
 
     # Inference
     model = model.eval()
@@ -158,7 +164,7 @@ def convert_video(model,
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])
                 if output_alpha is not None:
-                    writer_pha.write(pha[0])
+                    writer_pha.write(pha[0], epoch)
                 if output_composition is not None:
                     if output_type == 'video':
                         com = fgr * pha + bgr * (1 - pha)
