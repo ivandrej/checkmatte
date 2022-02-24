@@ -25,7 +25,7 @@ from dataset.precaptured_bgr_augmentation import PrecapturedBgrAndPersonSameAugm
 from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
 from evaluation.evaluation_metrics import MetricMAD
-from model.model_attention import MattingNetwork
+from model.model_attention_addition import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss, pha_loss
 

@@ -6,7 +6,7 @@ import sys
 
 import torch
 
-from model import model, model_concat_bgr, model_attention
+from model import model, model_concat_bgr, model_attention_addition, model_attention_concat
 
 from inference import convert_video, FixedOffsetMatcher
 
@@ -18,7 +18,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)
 parser.add_argument('--bgr-source', type=str, default=None)
 # only relevant if --bgr-source is specified
-parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='attention')
+parser.add_argument('--model', type=str, choices=['concat', 'attention_concat', 'attention_addition'],
+                    default='attention_addition')
 parser.add_argument('--out-dir', type=str, required=True)
 parser.add_argument('--load-model', type=str, required=True)
 parser.add_argument('--output-type', type=str, default='video', required=False)
@@ -33,15 +34,18 @@ for epoch in args.epochs:
     out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
 
     if args.bgr_source:
-        if args.bgr_integration == 'attention':
+        if args.model == 'attention_addition':
             visualizer = Visualizer(out_dir)
-            model = model_attention.MattingNetwork("mobilenetv3",
-                                                   pretrained_on_rvm=False,
-                                                   attention_visualizer=visualizer).eval().cuda()
+            model = model_attention_addition.MattingNetwork("mobilenetv3",
+                                                            pretrained_on_rvm=False,
+                                                            attention_visualizer=visualizer).eval().cuda()
+        elif args.model == 'attention_concat':
+            visualizer = Visualizer(out_dir)
+            model = model_attention_concat.MattingNetwork("mobilenetv3",
+                                                          pretrained_on_rvm=False,
+                                                          attention_visualizer=visualizer).eval().cuda()
         else:
-            model = model_concat_bgr.MattingNetwork("mobilenetv3",
-                                                    bgr_integration=args.bgr_integration,
-                                                    pretrained_on_rvm=False).eval().cuda()
+            raise Exception(f"{args.model} not supported")
     else:
         model = model.MattingNetwork("mobilenetv3").eval().cuda()
 
