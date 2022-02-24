@@ -38,9 +38,11 @@ class Visualizer:
         self.frameidx += T
 
     @staticmethod
-    def plot_attention(attention, h, w, frameidx):
-        attention_matrix = attention[frameidx][h][w].detach().cpu()
+    def plot_attention(attention, h, w, t):
+        attention_matrix = attention[t][h][w].detach().cpu()
         attention_matrix = attention_matrix * 100
+        # print("Attention matrix sum: ", attention_matrix.flatten().sum())
+        # assert (attention_matrix.flatten().sum().eq(100))
         # attention_matrix = np.round_(attention_matrix * 100, decimals=2)
         ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
         # h and w are swapped in pyplot plots compared to numpy arrays

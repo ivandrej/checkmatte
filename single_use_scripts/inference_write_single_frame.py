@@ -4,7 +4,7 @@ import os
 from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from torchvision.transforms.functional import to_pil_image
 from tqdm.auto import tqdm
@@ -27,19 +27,20 @@ class FixedOffsetMatcher:
     Outputs single frame of a video
 """
 class ImageSequenceWriter:
-    def __init__(self, path, frameid, extension='jpg'):
+    def __init__(self, path, frameids, extension='jpg'):
         self.path = path
-        self.target_frameid = frameid
+        self.frameids = frameids
         self.extension = extension
         self.counter = 0
-        os.makedirs(path, exist_ok=True)
 
     def write(self, frames, epoch):
         # frames: [T, C, H, W]
         for t in range(frames.shape[0]):
-            if self.counter == self.target_frameid:
+            if self.counter in self.frameids:
+                outdir = os.path.join(self.path, f"{self.counter}")
+                os.makedirs(outdir, exist_ok=True)
                 to_pil_image(frames[t]).save(os.path.join(
-                    self.path, str(epoch).zfill(4) + '.' + self.extension))
+                    outdir, str(epoch).zfill(4) + '.' + self.extension))
             self.counter += 1
 
     def close(self):
@@ -48,7 +49,7 @@ class ImageSequenceWriter:
 
 def convert_video(model,
                   input_source: str,
-                  frameid: int,
+                  frameids: List[int],
                   epoch: int,
                   matcher: FixedOffsetMatcher = None,
                   bgr_source: str = None,
@@ -123,7 +124,7 @@ def convert_video(model,
     if output_composition is not None:
         writer_com = ImageSequenceWriter(output_composition, 'png')
     if output_alpha is not None:
-        writer_pha = ImageSequenceWriter(output_alpha, frameid, 'png')
+        writer_pha = ImageSequenceWriter(output_alpha, frameids, 'png')
     if output_foreground is not None:
         writer_fgr = ImageSequenceWriter(output_foreground, 'png')
     if bgr_src_pairs is not None:
