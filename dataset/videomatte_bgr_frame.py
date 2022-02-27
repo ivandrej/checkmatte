@@ -41,7 +41,7 @@ class VideoMattePrecapturedBgrDataset(VideoMatteDataset):
             offset = offset_generator.get_frame_offset()
             # if offset frame reached end of bgr video, just return last frame
             bgr_frame_idx_t = min(frame_count - 1, frame_idx_t + offset)
-            precaptured_bgr = self.read_frame(clip_idx, frame_idx_t)
+            precaptured_bgr = self.read_frame(clip_idx, bgr_frame_idx_t)
             precaptured_bgrs.append(precaptured_bgr)
 
         return bgrs, precaptured_bgrs
