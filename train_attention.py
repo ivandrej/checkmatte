@@ -365,7 +365,7 @@ class Trainer:
         if self.rank == 0:
             self.log(f'Validating at the start of epoch: {self.epoch}')
             self.model_ddp.eval()
-            total_loss, total_count = 0, 0
+            total_loss, total_count, total_mad = 0, 0, 0
             pred_phas = []
             true_srcs = []
             precaptured_bgrs = []
@@ -386,6 +386,7 @@ class Trainer:
                         batch_size = true_src.size(0)
                         _, pred_pha = self.model(true_src, precaptured_bgr)[:2]
                         total_loss += pha_loss(pred_pha, true_pha)['total'].item() * batch_size
+                        total_mad += MetricMAD()(pred_pha, true_pha)
                         total_count += batch_size
 
                         if i % 12 == 0:  # reduces number of samples to show
@@ -394,7 +395,7 @@ class Trainer:
                             precaptured_bgrs.append(precaptured_bgr)
                         i += 1
             avg_loss = total_loss / total_count
-            mad_error = MetricMAD()(pred_pha, true_pha)
+            avg_mad = total_mad / total_count
             pred_phas = torch.cat(pred_phas, dim=0)
             true_srcs = torch.cat(true_srcs, dim=0)
             precaptured_bgrs = torch.cat(precaptured_bgrs, dim=0)
@@ -411,9 +412,9 @@ class Trainer:
                                       self.step)
 
             self.log(f'Validation set average loss: {avg_loss}')
-            self.log(f'Validation MAD: {mad_error}')
+            self.log(f'Validation MAD: {avg_mad}')
             self.writer.add_scalar('valid_loss', avg_loss, self.step)
-            self.writer.add_scalar('valid_mad', mad_error, self.step)
+            self.writer.add_scalar('valid_mad', avg_mad, self.step)
             self.model_ddp.train()
         dist.barrier()
 
@@ -421,7 +422,7 @@ class Trainer:
         if self.rank == 0:
             self.log(f'Validating hard at the start of epoch: {self.epoch}')
             self.model_ddp.eval()
-            total_loss, total_count = 0, 0
+            total_loss, total_count, total_mad = 0, 0, 0
             pred_phas = []
             true_srcs = []
             precaptured_bgrs = []
@@ -443,6 +444,7 @@ class Trainer:
                         batch_size = true_src.size(0)
                         _, pred_pha, attention = self.model(true_src, precaptured_bgr)[:3]
                         total_loss += pha_loss(pred_pha, true_pha)['total'].item() * batch_size
+                        total_mad += MetricMAD()(pred_pha, true_pha)
                         total_count += batch_size
 
                         # Only log attention for the first sequence
@@ -454,7 +456,6 @@ class Trainer:
                             true_srcs.append(true_src)
                             precaptured_bgrs.append(precaptured_bgr)
                         i += 1
-            mad_error = MetricMAD()(pred_pha, true_pha)
             pred_phas = pred_phas[0]
             true_srcs = true_srcs[0]
             precaptured_bgrs = precaptured_bgrs[0]
@@ -473,9 +474,10 @@ class Trainer:
                                       make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
                                       self.step)
             avg_loss = total_loss / total_count
+            avg_mad = total_mad / total_count
             self.log(f'Hard validation set average loss: {avg_loss}')
-            self.log(f'Hard validation set MAD: {mad_error}')
-            self.writer.add_scalar('hard_valid_mad', mad_error, self.step)
+            self.log(f'Hard validation set MAD: {avg_mad}')
+            self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
             self.model_ddp.train()
         dist.barrier()
 
