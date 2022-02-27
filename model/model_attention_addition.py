@@ -75,7 +75,7 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
-        bgr_guidance = self.spatial_attention(f4, f4_bgr)
+        bgr_guidance, attention = self.spatial_attention(f4, f4_bgr)
         f4_combined = bgr_guidance + f4
 
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
@@ -87,7 +87,7 @@ class MattingNetwork(nn.Module):
             fgr = fgr_residual + src
             fgr = fgr.clamp(0., 1.)
             pha = pha.clamp(0., 1.)
-            return [fgr, pha, *rec]
+            return [fgr, pha, attention, *rec]
         else:
             seg = self.project_seg(hid)
             return [seg, *rec]
@@ -131,14 +131,16 @@ class SpatialAttention(nn.Module):
         if self.attention_visualizer:
             self.attention_visualizer(attention.view(-1, H, W, H, W))
 
-        return out
+        return out, attention
 
     def forward_time_series(self, p, b):
         assert (p.shape == b.shape)
-        B, T = p.shape[:2]
-        features = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
+        B, T, _, H, W = p.shape
+        features, attention = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
         features = features.unflatten(0, (B, T))
-        return features
+        # attention = attention.unflatten(0, (B, T))
+        attention = attention.view(B, T, H, W, H, W).detach().cpu().numpy()
+        return features, attention
 
     def forward(self, p, b):
         assert(p.shape == b.shape)

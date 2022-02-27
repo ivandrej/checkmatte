@@ -45,7 +45,7 @@ class Visualizer:
                 for h, w in spatial_locations:
                     outdir = os.path.join(self.outdir, f"{h}-{w}-{self.counter}")
                     os.makedirs(outdir, exist_ok=True)
-                    figure = visualize_attention.Visualizer.plot_attention(attention, h, w, t)
+                    figure = visualize_attention.plot_attention(attention, h, w, t)
                     figure.savefig(os.path.join(outdir, f"{self.epoch.zfill(4)}.png"))
                     figure.clear()
             self.counter += 1

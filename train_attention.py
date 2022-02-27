@@ -28,6 +28,7 @@ from evaluation.evaluation_metrics import MetricMAD
 from model.model_attention_addition import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss, pha_loss
+from visualize_attention import TrainVisualizer
 
 
 class Trainer:
@@ -74,6 +75,7 @@ class Trainer:
         parser.add_argument('--log-train-loss-interval', type=int, default=20)
         parser.add_argument('--log-train-images-interval', type=int, default=500)
         parser.add_argument('--log-randombgr-mad-interval', type=int, default=None)
+        parser.add_argument('--log-attention-vis-interval', type=int, default=None)
         # Checkpoint loading and saving
         parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, required=True)
@@ -239,6 +241,8 @@ class Trainer:
             self.log('Initializing writer')
             self.writer = SummaryWriter(self.args.log_dir)
 
+            self.train_attention_visualizer = TrainVisualizer(self.writer)
+
     def train(self):
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
             self.epoch = epoch
@@ -280,7 +284,7 @@ class Trainer:
             print("Training batch shape: ", true_src.shape)
 
         with autocast(enabled=not self.args.disable_mixed_precision):
-            _, pred_pha = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:2]
+            _, pred_pha, attention = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:3]
             loss = pha_loss(pred_pha, true_pha)
 
         self.scaler.scale(loss['total']).backward()
@@ -308,6 +312,9 @@ class Trainer:
         if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
             self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
 
+        if self.args.log_attention_vis_interval and self.step % self.args.log_attention_vis_interval == 0:
+            self.train_attention_visualizer(attention, self.step)
+
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
                 self.writer.add_scalar(f'train_{tag}_{loss_name}', loss_value, self.step)
@@ -326,35 +333,6 @@ class Trainer:
             self.writer.add_image(f'train_{tag}_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
                                                                             nrow=precaptured_bgr.size(1)),
                                   self.step)
-
-    def train_seg(self, true_img, true_seg, log_label):
-        true_img = true_img.to(self.rank, non_blocking=True)
-        true_seg = true_seg.to(self.rank, non_blocking=True)
-
-        # true_img, true_seg = self.random_crop(true_img, true_seg)
-        if self.step == 0:
-            print("Segmentation batch size: ", true_seg.shape)
-
-        with autocast(enabled=not self.args.disable_mixed_precision):
-            pred_seg = self.model_ddp(true_img, segmentation_pass=True)[0]
-            loss = segmentation_loss(pred_seg, true_seg)
-
-        self.scaler.scale(loss).backward()
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
-        self.optimizer.zero_grad()
-
-        if self.rank == 0 and (self.step - self.step % 2) % self.args.log_train_loss_interval == 0:
-            self.writer.add_scalar(f'{log_label}_loss', loss, self.step)
-
-        if self.rank == 0 and (self.step - self.step % 2) % self.args.log_train_images_interval == 0:
-            self.writer.add_image(f'{log_label}_pred_seg',
-                                  make_grid(pred_seg.flatten(0, 1).float().sigmoid(), nrow=self.args.seq_length_lr),
-                                  self.step)
-            self.writer.add_image(f'{log_label}_true_seg',
-                                  make_grid(true_seg.flatten(0, 1), nrow=self.args.seq_length_lr), self.step)
-            self.writer.add_image(f'{log_label}_true_img',
-                                  make_grid(true_img.flatten(0, 1), nrow=self.args.seq_length_lr), self.step)
 
     def load_next_mat_hr_sample(self):
         try:
