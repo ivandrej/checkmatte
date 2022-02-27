@@ -313,7 +313,7 @@ class Trainer:
             self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
 
         if self.args.log_attention_vis_interval and self.step % self.args.log_attention_vis_interval == 0:
-            self.train_attention_visualizer(attention, self.step)
+            self.train_attention_visualizer(attention, self.step, 'train')
 
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
@@ -425,6 +425,7 @@ class Trainer:
             pred_phas = []
             true_srcs = []
             precaptured_bgrs = []
+            attention_to_log = None
             i = 0
             with torch.no_grad():
                 with autocast(enabled=not self.args.disable_mixed_precision):
@@ -440,9 +441,13 @@ class Trainer:
                             print("Validation hard batch shape: ", true_src.shape)
 
                         batch_size = true_src.size(0)
-                        _, pred_pha = self.model(true_src, precaptured_bgr)[:2]
+                        _, pred_pha, attention = self.model(true_src, precaptured_bgr)[:3]
                         total_loss += pha_loss(pred_pha, true_pha)['total'].item() * batch_size
                         total_count += batch_size
+
+                        # Only log attention for the first sequence
+                        if i == 0:
+                            attention_to_log = attention
 
                         if i % 12 == 0:  # reduces number of samples to show
                             pred_phas.append(pred_pha)
@@ -453,6 +458,9 @@ class Trainer:
             pred_phas = pred_phas[0]
             true_srcs = true_srcs[0]
             precaptured_bgrs = precaptured_bgrs[0]
+
+            if self.args.log_attention_vis_interval:
+                self.train_attention_visualizer(attention_to_log, self.step, 'valid')
 
             if self.rank == 0:
                 self.writer.add_image(f'hard_valid_pred_pha',

@@ -50,7 +50,7 @@ class TrainVisualizer:
     def __init__(self, writer):
         self.writer = writer
 
-    def __call__(self, attention, step):
+    def __call__(self, attention, step, tag):
         assert (attention.ndim == 6)
         attention = attention[0]
         T, H, W, _, _ = attention.shape
@@ -59,7 +59,7 @@ class TrainVisualizer:
         for h, w in key_spatial_locations(H, W):
             figure = plot_attention(attention, h, w, frameidx)
 
-            self.writer.add_figure(f'train_{h}:{w}_frame{frameidx}', figure, step)
+            self.writer.add_figure(f'attention_{tag}_{h}:{w}_frame{frameidx}', figure, step)
 
 
 def plot_attention(attention, h, w, t):
