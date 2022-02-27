@@ -372,7 +372,7 @@ class Trainer:
             i = 0
             with torch.no_grad():
                 with autocast(enabled=not self.args.disable_mixed_precision):
-                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid_hard,
+                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid,
                                                                          disable=self.args.disable_progress_bar,
                                                                         dynamic_ncols=True):
                         true_fgr = true_fgr.to(self.rank, non_blocking=True)
