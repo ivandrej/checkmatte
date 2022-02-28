@@ -76,8 +76,6 @@ class AbstractAttentionTrainer:
         parser.add_argument('--log-dir', type=str, required=True)
         parser.add_argument('--log-train-loss-interval', type=int, default=20)
         parser.add_argument('--log-train-images-interval', type=int, default=500)
-        parser.add_argument('--log-randombgr-mad-interval', type=int, default=None)
-        parser.add_argument('--log-attention-vis-interval', type=int, default=None)
         # Checkpoint loading and saving
         parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, required=True)
@@ -260,9 +258,6 @@ class AbstractAttentionTrainer:
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.optimizer.zero_grad()
-
-        if self.args.log_attention_vis_interval and self.step % self.args.log_attention_vis_interval == 0:
-            self.attention_visualizer(attention, self.step, 'train')
 
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
