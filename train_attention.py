@@ -6,11 +6,13 @@ import os
 import random
 
 import torch
+from PIL import Image
 from torch import distributed as dist
 from torch import multiprocessing as mp
 from torch import nn
 from torch.cuda.amp import autocast, GradScaler
 from torch.nn import functional as F
+import torchvision.transforms as transforms
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -176,6 +178,8 @@ class Trainer:
             num_workers=self.args.num_workers,
             pin_memory=True)
 
+        self.random_bgr_path = BGR_FRAME_DATA_PATHS["leonhardstrasse"]
+
     def init_model(self):
         self.log('Initializing model')
         self.model = MattingNetwork(self.args.model_variant,
@@ -268,15 +272,33 @@ class Trainer:
             self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1, tag='train')
 
     def test_on_random_bgr(self, true_src, true_pha, downsample_ratio, tag):
-        random_bgr = torch.zeros(true_src.shape).to(self.rank, non_blocking=True)
+        random_bgr = self.read_random_bgr(true_src.shape).unsqueeze(0)
+        random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
+        random_bgr = random_bgr.to(self.rank, non_blocking=True)
+
         _, pred_pha, attention = self.model_ddp(true_src,
                                     random_bgr,
                                     downsample_ratio=downsample_ratio)[:3]
         random_bgr_mad = MetricMAD()(pred_pha, true_pha)
-        self.writer.add_scalar(f'{tag}_blackbgr_mad', random_bgr_mad, self.step)
-        self.writer.add_image(f'{tag}_pred_pha_blackbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+        self.writer.add_scalar(f'{tag}_wrongbgr_mad', random_bgr_mad, self.step)
+        self.writer.add_image(f'{tag}_pred_pha_wrongbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
                               self.step)
-        self.attention_visualizer(attention, self.step, f'{tag}_blackbgr')
+        self.attention_visualizer(attention, self.step, f'{tag}_wrongbgr')
+
+    def read_random_bgr(self, true_shape):
+        _, T, _, H, W = true_shape
+        frames = []
+        i = 0
+        for frameid in sorted(os.listdir(self.random_bgr_path)):
+            if i == T:
+                break
+
+            with Image.open(os.path.join(self.random_bgr_path, frameid)) as frm:
+                frames.append(frm.convert('RGB').resize((W, H)))
+            i += 1
+
+        frames = torch.stack([transforms.functional.to_tensor(frm) for frm in frames])
+        return frames
 
     def log_train_predictions(self, precaptured_bgr, pred_pha, true_pha, true_src):
         # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
