@@ -219,7 +219,7 @@ class Trainer:
             self.log('Initializing writer')
             self.writer = SummaryWriter(self.args.log_dir)
 
-            self.train_attention_visualizer = TrainVisualizer(self.writer)
+            self.attention_visualizer = TrainVisualizer(self.writer)
 
     def train(self):
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
@@ -266,7 +266,7 @@ class Trainer:
         self.optimizer.zero_grad()
 
         if self.args.log_attention_vis_interval and self.step % self.args.log_attention_vis_interval == 0:
-            self.train_attention_visualizer(attention, self.step, 'train')
+            self.attention_visualizer(attention, self.step, 'train')
 
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
@@ -274,7 +274,7 @@ class Trainer:
 
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
-            self.train_attention_visualizer(attention, self.step, 'train')
+            self.attention_visualizer(attention, self.step, 'train')
             self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
 
     def test_on_random_bgr(self, true_src, true_pha, downsample_ratio):
@@ -286,7 +286,7 @@ class Trainer:
         self.writer.add_scalar(f'train_blackbgr_mad', random_bgr_mad, self.step)
         self.writer.add_image(f'train_pred_pha_blackbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
                               self.step)
-        self.train_attention_visualizer(attention, self.step, 'train_blackbgr')
+        self.attention_visualizer(attention, self.step, 'train_blackbgr')
 
     def log_train_predictions(self, precaptured_bgr, pred_pha, true_pha, true_src):
         # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
@@ -443,8 +443,7 @@ class Trainer:
             true_srcs = true_srcs[0]
             precaptured_bgrs = precaptured_bgrs[0]
 
-            if self.args.log_attention_vis_interval:
-                self.train_attention_visualizer(attention_to_log, self.step, 'valid')
+            self.attention_visualizer(attention_to_log, self.step, 'valid')
 
             if self.rank == 0:
                 self.writer.add_image(f'hard_valid_pred_pha',

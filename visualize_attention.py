@@ -48,8 +48,8 @@ class Visualizer:
 """
     Plots to Tensorboard:
       - 4 key locations
-      - frame = 2 
       - first sequence in batch
+      - all frames
 """
 class TrainVisualizer:
     def __init__(self, writer):
