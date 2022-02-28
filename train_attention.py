@@ -269,19 +269,21 @@ class Trainer:
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
             self.attention_visualizer(attention, self.step, 'train')
-            self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1, tag='train')
+            self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
 
-    def test_on_random_bgr(self, true_src, true_pha, downsample_ratio, tag):
+    def test_on_random_bgr(self, true_src, true_pha, pred_pha, downsample_ratio, tag):
         random_bgr = self.read_random_bgr(true_src.shape).unsqueeze(0)
         random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
         random_bgr = random_bgr.to(self.rank, non_blocking=True)
 
-        _, pred_pha, attention = self.model_ddp(true_src,
+        _, randombgr_pred_pha, attention = self.model_ddp(true_src,
                                     random_bgr,
                                     downsample_ratio=downsample_ratio)[:3]
-        random_bgr_mad = MetricMAD()(pred_pha, true_pha)
+        random_bgr_mad = MetricMAD()(randombgr_pred_pha, true_pha)
         self.writer.add_scalar(f'{tag}_wrongbgr_mad', random_bgr_mad, self.step)
-        self.writer.add_image(f'{tag}_pred_pha_wrongbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+        mad_random_and_correct_pha = MetricMAD()(randombgr_pred_pha, pred_pha)
+        self.writer.add_scalar(f'{tag}_wrongbgr_and_correctbgr_mad', mad_random_and_correct_pha, self.step)
+        self.writer.add_image(f'{tag}_pred_pha_wrongbgr', make_grid(randombgr_pred_pha.flatten(0, 1), nrow=randombgr_pred_pha.size(1)),
                               self.step)
         self.attention_visualizer(attention, self.step, f'{tag}_wrongbgr')
 
@@ -445,7 +447,7 @@ class Trainer:
                         # Only log attention for the first sequence
                         if i == 0:
                             attention_to_log = attention
-                            self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1, tag='valid')
+                            self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='valid')
 
                         if i % 12 == 0:  # reduces number of samples to show
                             pred_phas.append(pred_pha)
