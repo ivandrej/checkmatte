@@ -1,7 +1,12 @@
+import io
 import os
 
+import numpy as np
 import seaborn as sns
+import torch
+from PIL import Image
 from matplotlib.patches import Rectangle
+from torchvision.utils import make_grid
 
 """
   /outdir
@@ -55,24 +60,40 @@ class TrainVisualizer:
         attention = attention[0]
         T, H, W, _, _ = attention.shape
 
-        frameidx = 2
         for h, w in key_spatial_locations(H, W):
-            figure = plot_attention(attention, h, w, frameidx)
+            figures = []
+            for t in range(T):
+                figure = plot_attention(attention, h, w, t)
+                figures.append(figure)
 
-            self.writer.add_figure(f'attention_{tag}_{h}:{w}_frame{frameidx}', figure, step)
+            figures = torch.from_numpy(np.array(figures)).unsqueeze(0)  # Add batch dim, currently ignored
+            figures = figures.permute(0, 1, 4, 2, 3)  # B, T, H, W, C  --> B, T, C, H, W
+            self.writer.add_image(f'{tag}_attention_{h},{w}',
+                                  make_grid(figures.flatten(0, 1), nrow=figures.size(1)),
+                                  step)
 
 
 def plot_attention(attention, h, w, t):
     attention_matrix = attention[t][h][w]
     attention_matrix = attention_matrix * 100
-    # print("Attention matrix sum: ", attention_matrix.flatten().sum())
-    # assert (attention_matrix.flatten().sum().eq(100))
-    # attention_matrix = np.round_(attention_matrix * 100, decimals=2)
     ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
+
     # h and w are swapped in pyplot plots compared to numpy arrays
     ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1))
     figure = ax.get_figure()
-    return figure
+
+    # Store plot in a buffer in memory
+    buf = io.BytesIO()
+    figure.savefig(buf, format='png')
+    buf.seek(0)
+
+    # Read plot as np img from buffer
+    img = np.array(Image.open(buf)).astype(np.uint8)
+    img = img[:, :, :3]  # remove alpha channel
+
+    buf.close()
+    figure.clear()
+    return img
 
 
 """

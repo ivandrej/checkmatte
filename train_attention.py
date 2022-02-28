@@ -186,28 +186,6 @@ class Trainer:
             num_workers=self.args.num_workers,
             pin_memory=True)
 
-        # TODO: Add segmentation datasets
-        # self.log('Initializing video segmentation datasets')
-        # if self.args.seg_every_n_steps:
-        #     self.dataset_seg_video = YouTubeVISDataset(
-        #         videodir=SPECIALIZED_DATA_PATHS['youtubevis']['videodir'],
-        #         annfile=SPECIALIZED_DATA_PATHS['youtubevis']['annfile'],
-        #         size=self.args.resolution_lr,
-        #         seq_length=self.args.seq_length_lr,
-        #         seq_sampler=TrainFrameSampler(speed=[1]),
-        #         transform=YouTubeVISAugmentation(self.args.resolution_lr))
-        #     self.datasampler_seg_video = DistributedSampler(
-        #         dataset=self.dataset_seg_video,
-        #         rank=self.rank,
-        #         num_replicas=self.world_size,
-        #         shuffle=True)
-        #     self.dataloader_seg_video = DataLoader(
-        #         dataset=self.dataset_seg_video,
-        #         batch_size=self.args.batch_size_per_gpu,
-        #         num_workers=self.args.num_workers,
-        #         sampler=self.datasampler_seg_video,
-        #         pin_memory=True)
-
     def init_model(self):
         self.log('Initializing model')
         self.model = MattingNetwork(self.args.model_variant,
@@ -298,9 +276,6 @@ class Trainer:
         self.scaler.update()
         self.optimizer.zero_grad()
 
-        # if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
-        #     self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
-
         if self.args.log_attention_vis_interval and self.step % self.args.log_attention_vis_interval == 0:
             self.train_attention_visualizer(attention, self.step, 'train')
 
@@ -309,21 +284,24 @@ class Trainer:
                 self.writer.add_scalar(f'train_{tag}_{loss_name}', loss_value, self.step)
 
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
-            # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
-            #                       self.step)
-            self.writer.add_image(f'train_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
-                                  self.step)
-            # self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
-            #                       self.step)
-            self.writer.add_image(f'train_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
-                                  self.step)
-            self.writer.add_image(f'train_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
-                                  self.step)
-            self.writer.add_image(f'train_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
-                                                                            nrow=precaptured_bgr.size(1)),
-                                  self.step)
-
+            self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
+            self.train_attention_visualizer(attention, self.step, 'train')
             self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
+
+    def log_train_predictions(self, precaptured_bgr, pred_pha, true_pha, true_src):
+        # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
+        #                       self.step)
+        self.writer.add_image(f'train_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+                              self.step)
+        # self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
+        #                       self.step)
+        self.writer.add_image(f'train_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
+                              self.step)
+        self.writer.add_image(f'train_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
+                              self.step)
+        self.writer.add_image(f'train_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
+                                                                  nrow=precaptured_bgr.size(1)),
+                              self.step)
 
     def log_grad_norms(self):
         bgr_encoder_grad_norm = torch.linalg.vector_norm(
