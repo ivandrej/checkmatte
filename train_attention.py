@@ -266,11 +266,14 @@ class Trainer:
 
     def test_on_random_bgr(self, true_src, true_pha, downsample_ratio):
         random_bgr = torch.zeros(true_src.shape).to(self.rank, non_blocking=True)
-        _, pred_pha_random_bgr = self.model_ddp(true_src,
-                                                random_bgr,
-                                                downsample_ratio=downsample_ratio)[:2]
-        random_bgr_mad = MetricMAD()(pred_pha_random_bgr, true_pha)
+        _, pred_pha = self.model_ddp(true_src,
+                                    random_bgr,
+                                    downsample_ratio=downsample_ratio)[:2]
+        random_bgr_mad = MetricMAD()(pred_pha, true_pha)
         self.writer.add_scalar(f'random_bgr_mad', random_bgr_mad, self.step)
+        if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
+            self.writer.add_image(f'blackbgr_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+                                  self.step)
 
     def train_mat(self, true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
