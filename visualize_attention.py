@@ -80,7 +80,7 @@ def plot_attention(attention, h, w, t):
     ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
 
     # h and w are swapped in pyplot plots compared to numpy arrays
-    ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1))
+    ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='white', linewidth=2))
     figure = ax.get_figure()
 
     # Store plot in a buffer in memory
