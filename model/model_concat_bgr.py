@@ -13,6 +13,7 @@ from .fast_guided_filter import FastGuidedFilterRefiner
 from .deep_guided_filter import DeepGuidedFilterRefiner
 
 
+# TODO: Update this class to only perform concat without addition. Addition with concat is moved to a separate class
 class MattingNetwork(nn.Module):
     def __init__(self,
                  variant: str = 'mobilenetv3',

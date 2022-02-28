@@ -79,7 +79,7 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
-        bgr_guidance = self.spatial_attention(f4, f4_bgr)
+        bgr_guidance, attention = self.spatial_attention(f4, f4_bgr)
         f4_concat = torch.cat((bgr_guidance, f4), dim=2)
         f4_concat = self.project_concat(f4_concat)
 
@@ -92,7 +92,7 @@ class MattingNetwork(nn.Module):
             fgr = fgr_residual + src
             fgr = fgr.clamp(0., 1.)
             pha = pha.clamp(0., 1.)
-            return [fgr, pha, *rec]
+            return [fgr, pha, attention, *rec]
         else:
             seg = self.project_seg(hid)
             return [seg, *rec]
