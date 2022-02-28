@@ -270,9 +270,9 @@ class Trainer:
                                     random_bgr,
                                     downsample_ratio=downsample_ratio)[:2]
         random_bgr_mad = MetricMAD()(pred_pha, true_pha)
-        self.writer.add_scalar(f'random_bgr_mad', random_bgr_mad, self.step)
+        self.writer.add_scalar(f'train_blackbgr_mad', random_bgr_mad, self.step)
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
-            self.writer.add_image(f'blackbgr_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+            self.writer.add_image(f'train_pred_pha_blackbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
                                   self.step)
 
     def train_mat(self, true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio, tag):
@@ -292,28 +292,14 @@ class Trainer:
 
         self.scaler.scale(loss['total']).backward()
 
-        # TODO: Move to a separate method
-        bgr_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
-        self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
-
-        person_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
-        self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
-
-        attention_key_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))
-        self.writer.add_scalar(f'attention_key_grad_norm', attention_key_grad_norm, self.step)
-        attention_query_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.spatial_attention.query_conv.weight.grad))
-        self.writer.add_scalar(f'attention_query_grad_norm', attention_query_grad_norm, self.step)
+        self.log_grad_norms()
 
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.optimizer.zero_grad()
 
-        if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
-            self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
+        # if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
+        #     self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
 
         if self.args.log_attention_vis_interval and self.step % self.args.log_attention_vis_interval == 0:
             self.train_attention_visualizer(attention, self.step, 'train')
@@ -325,17 +311,33 @@ class Trainer:
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
             # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
             #                       self.step)
-            self.writer.add_image(f'train_{tag}_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+            self.writer.add_image(f'train_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
                                   self.step)
             # self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
             #                       self.step)
-            self.writer.add_image(f'train_{tag}_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
+            self.writer.add_image(f'train_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
                                   self.step)
-            self.writer.add_image(f'train_{tag}_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
+            self.writer.add_image(f'train_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
                                   self.step)
-            self.writer.add_image(f'train_{tag}_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
+            self.writer.add_image(f'train_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
                                                                             nrow=precaptured_bgr.size(1)),
                                   self.step)
+
+            self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
+
+    def log_grad_norms(self):
+        bgr_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
+        self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
+        person_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
+        self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
+        attention_key_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))
+        self.writer.add_scalar(f'attention_key_grad_norm', attention_key_grad_norm, self.step)
+        attention_query_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.spatial_attention.query_conv.weight.grad))
+        self.writer.add_scalar(f'attention_query_grad_norm', attention_query_grad_norm, self.step)
 
     def load_next_mat_hr_sample(self):
         try:
