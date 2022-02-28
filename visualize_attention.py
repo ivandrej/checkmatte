@@ -66,7 +66,8 @@ class TrainVisualizer:
                 figure = plot_attention(attention, h, w, t)
                 figures.append(figure)
 
-            figures = torch.from_numpy(np.array(figures)).unsqueeze(0)  # Add batch dim, currently ignored
+            # Add batch dim, currently ignored in plot method
+            figures = torch.from_numpy(np.array(figures)).unsqueeze(0)
             figures = figures.permute(0, 1, 4, 2, 3)  # B, T, H, W, C  --> B, T, C, H, W
             self.writer.add_image(f'{tag}_attention_{h},{w}',
                                   make_grid(figures.flatten(0, 1), nrow=figures.size(1)),

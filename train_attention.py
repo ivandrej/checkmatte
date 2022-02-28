@@ -242,17 +242,6 @@ class Trainer:
                 self.step += 1
                 # print("Step: ", self.step)
 
-    def test_on_random_bgr(self, true_src, true_pha, downsample_ratio):
-        random_bgr = torch.zeros(true_src.shape).to(self.rank, non_blocking=True)
-        _, pred_pha = self.model_ddp(true_src,
-                                    random_bgr,
-                                    downsample_ratio=downsample_ratio)[:2]
-        random_bgr_mad = MetricMAD()(pred_pha, true_pha)
-        self.writer.add_scalar(f'train_blackbgr_mad', random_bgr_mad, self.step)
-        if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
-            self.writer.add_image(f'train_pred_pha_blackbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
-                                  self.step)
-
     def train_mat(self, true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
@@ -287,6 +276,17 @@ class Trainer:
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
             self.train_attention_visualizer(attention, self.step, 'train')
             self.test_on_random_bgr(true_src, true_pha, downsample_ratio=1)
+
+    def test_on_random_bgr(self, true_src, true_pha, downsample_ratio):
+        random_bgr = torch.zeros(true_src.shape).to(self.rank, non_blocking=True)
+        _, pred_pha, attention = self.model_ddp(true_src,
+                                    random_bgr,
+                                    downsample_ratio=downsample_ratio)[:3]
+        random_bgr_mad = MetricMAD()(pred_pha, true_pha)
+        self.writer.add_scalar(f'train_blackbgr_mad', random_bgr_mad, self.step)
+        self.writer.add_image(f'train_pred_pha_blackbgr', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+                              self.step)
+        self.train_attention_visualizer(attention, self.step, 'train_blackbgr')
 
     def log_train_predictions(self, precaptured_bgr, pred_pha, true_pha, true_src):
         # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
