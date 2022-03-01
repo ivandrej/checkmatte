@@ -455,15 +455,14 @@ class AbstractAttentionTrainer:
                         total_mad += MetricMAD()(pred_pha, true_pha)
                         total_count += batch_size
 
-                        _, randombgr_pred_pha, randombgr_attention = self.model(true_src,
-                                                                                random_bgr)[:3]
+                        _, randombgr_pred_pha, randombgr_attention = self.model(true_src, random_bgr)[:3]
                         randombgr_total_mad += MetricMAD()(randombgr_pred_pha, true_pha)
                         randombgr_and_correctbgr_total_mad += MetricMAD()(randombgr_pred_pha, pred_pha)
 
                         # Only log attention for the first sequence
                         if i == 0:
                             attention_to_log = attention
-                            randombgr_attention_to_log = attention
+                            randombgr_attention_to_log = randombgr_attention
 
                         if i == 0:  # only show first batch
                             pred_phas.append(pred_pha)
