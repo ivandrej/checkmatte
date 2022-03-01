@@ -81,5 +81,5 @@ BGR_FRAME_DATA_PATHS = {
         'valid': '/media/andivanov/DATA/training/phone_captures_valid'
     },
     'rvm_model': '/media/andivanov/DATA/training/rvm_mobilenetv3.pth',
-    'leonhardstrasse': '/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/leonhardstrasse_building/'
+    'room': '/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/room'
 }

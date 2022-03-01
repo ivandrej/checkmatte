@@ -185,7 +185,7 @@ class AbstractAttentionTrainer:
             num_workers=self.args.num_workers,
             pin_memory=True)
 
-        self.random_bgr_path = BGR_FRAME_DATA_PATHS["leonhardstrasse"]
+        self.random_bgr_path = BGR_FRAME_DATA_PATHS["room"]
 
     def init_network(self):
         raise Exception("This is a base class, pls extend")
