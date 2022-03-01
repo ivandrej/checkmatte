@@ -153,7 +153,7 @@ def convert_video(model,
 
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
                 bgr = bgr.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
-                fgr, pha, *rec = model(src, bgr, *rec, downsample_ratio)
+                fgr, pha, _, *rec = model(src, bgr, *rec, downsample_ratio)
 
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])

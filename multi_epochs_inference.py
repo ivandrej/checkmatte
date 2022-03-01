@@ -38,7 +38,7 @@ for epoch in args.epochs:
             visualizer = Visualizer(out_dir)
             model = model_attention_addition.MattingNetwork("mobilenetv3",
                                                             pretrained_on_rvm=False,
-                                                            attention_visualizer=visualizer).eval().cuda()
+                                                            attention_visualizer=None).eval().cuda()
         elif args.model == 'attention_concat':
             visualizer = Visualizer(out_dir)
             model = model_attention_concat.MattingNetwork("mobilenetv3",

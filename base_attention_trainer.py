@@ -220,7 +220,7 @@ class AbstractAttentionTrainer:
             self.epoch = epoch
             self.step = epoch * len(self.dataloader_lr_train)
             if not self.args.disable_validation:
-                self.validate()
+                # self.validate()
                 self.validate_hard()
 
             self.log(f'Training epoch: {epoch}')
@@ -290,7 +290,7 @@ class AbstractAttentionTrainer:
         frames = []
         i = 0
         for frameid in sorted(os.listdir(self.random_bgr_path)):
-            if i == T:
+            if i == self.args.seq_length_lr:
                 break
 
             with Image.open(os.path.join(self.random_bgr_path, frameid)) as frm:
@@ -417,11 +417,14 @@ class AbstractAttentionTrainer:
         if self.rank == 0:
             self.log(f'Validating hard at the start of epoch: {self.epoch}')
             self.model_ddp.eval()
-            total_loss, total_count, total_mad = 0, 0, 0
+            total_loss, total_count = 0, 0
+            randombgr_and_correctbgr_total_mad, total_mad, randombgr_total_mad = 0, 0, 0
             pred_phas = []
             true_srcs = []
             precaptured_bgrs = []
+            randombgr_pred_phas = []
             attention_to_log = None
+            randombgr_attention_to_log = None
             i = 0
             with torch.no_grad():
                 with autocast(enabled=not self.args.disable_mixed_precision):
@@ -433,6 +436,16 @@ class AbstractAttentionTrainer:
                         true_bgr = true_bgr.to(self.rank, non_blocking=True)
                         precaptured_bgr = precaptured_bgr.to(self.rank, non_blocking=True)
                         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+
+                        # Only read random bgr once for performance
+                        if i == 0:
+                            random_bgr = self.read_random_bgr(true_src.shape).to(self.rank, non_blocking=True).unsqueeze(0)
+                            random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
+
+                        # The last batch does not have exactly (batch_size, seq_len) dimensions
+                        random_bgr = random_bgr[:true_src.shape[0], :true_src.shape[1], :, :, :]
+
+                        assert (random_bgr.shape == true_src.shape)
                         if total_count == 0:  # only print once
                             print("Validation hard batch shape: ", true_src.shape)
 
@@ -442,21 +455,26 @@ class AbstractAttentionTrainer:
                         total_mad += MetricMAD()(pred_pha, true_pha)
                         total_count += batch_size
 
+                        _, randombgr_pred_pha, randombgr_attention = self.model(true_src,
+                                                                                random_bgr)[:3]
+                        randombgr_total_mad += MetricMAD()(randombgr_pred_pha, true_pha)
+                        randombgr_and_correctbgr_total_mad += MetricMAD()(randombgr_pred_pha, pred_pha)
+
                         # Only log attention for the first sequence
                         if i == 0:
                             attention_to_log = attention
-                            self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='valid')
+                            randombgr_attention_to_log = attention
 
-                        if i % 12 == 0:  # reduces number of samples to show
+                        if i == 0:  # only show first batch
                             pred_phas.append(pred_pha)
                             true_srcs.append(true_src)
                             precaptured_bgrs.append(precaptured_bgr)
+                            randombgr_pred_phas.append(randombgr_pred_pha)
                         i += 1
             pred_phas = pred_phas[0]
             true_srcs = true_srcs[0]
             precaptured_bgrs = precaptured_bgrs[0]
-
-            self.attention_visualizer(attention_to_log, self.step, 'valid')
+            randombgr_pred_phas = randombgr_pred_phas[0]
 
             if self.rank == 0:
                 self.writer.add_image(f'hard_valid_pred_pha',
@@ -468,11 +486,21 @@ class AbstractAttentionTrainer:
                 self.writer.add_image(f'hard_valid_precaptured_bgr',
                                       make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
                                       self.step)
+                self.writer.add_image(f'hard_valid_pred_pha_wrongbgr',
+                                      make_grid(randombgr_pred_phas.flatten(0, 1), nrow=randombgr_pred_phas.size(1)),
+                                      self.step)
+                self.attention_visualizer(attention_to_log, self.step, 'hard_valid')
+                self.attention_visualizer(randombgr_attention_to_log, self.step, 'hard_valid_randombgr')
+
             avg_loss = total_loss / total_count
             avg_mad = total_mad / total_count
+            avg_randombgr_mad = randombgr_total_mad / total_count
+            avg_randombgr_and_correctbgr_mad = randombgr_and_correctbgr_total_mad / total_count
             self.log(f'Hard validation set average loss: {avg_loss}')
             self.log(f'Hard validation set MAD: {avg_mad}')
             self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
+            self.writer.add_scalar('hard_valid_randombgr_and_correctbgr_mad', avg_randombgr_and_correctbgr_mad, self.step)
+            self.writer.add_scalar('hard_valid_randombgr_mad', avg_randombgr_mad, self.step)
 
             self.model_ddp.train()
         dist.barrier()
