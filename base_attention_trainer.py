@@ -448,6 +448,8 @@ class AbstractAttentionTrainer:
                         # The last batch does not have exactly (batch_size, seq_len) dimensions
                         random_bgr = random_bgr[:true_src.shape[0], :true_src.shape[1], :, :, :]
 
+                        # random_noise_bgr = torch.rand_like(true_src).to(self.rank, non_blocking=True)
+
                         assert (random_bgr.shape == true_src.shape)
                         if total_count == 0:  # only print once
                             print("Validation hard batch shape: ", true_src.shape)
@@ -462,10 +464,13 @@ class AbstractAttentionTrainer:
                         randombgr_total_mad += MetricMAD()(randombgr_pred_pha, true_pha) * batch_size
                         randombgr_and_correctbgr_total_mad += MetricMAD()(randombgr_pred_pha, pred_pha) * batch_size
 
+                        # _, randomnoisebgr_pred_pha, randomnoisebgr_attention = self.model(true_src, random_noise_bgr)[:3]
+
                         # Only log attention for the first sequence
                         if i == 0:
                             attention_to_log = attention
                             randombgr_attention_to_log = randombgr_attention
+                            # randomnoisebgr_attention_to_log = randomnoisebgr_attention
 
                         attentions_total_mad += np.mean(np.absolute(attention - randombgr_attention)) * batch_size
 
@@ -490,11 +495,15 @@ class AbstractAttentionTrainer:
                 self.writer.add_image(f'hard_valid_precaptured_bgr',
                                       make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
                                       self.step)
+                # self.writer.add_image(f'hard_valid_randomnoisebgr',
+                #                       make_grid(random_noise_bgr.flatten(0, 1), nrow=random_noise_bgr.size(1)),
+                #                       self.step)
                 self.writer.add_image(f'hard_valid_pred_pha_wrongbgr',
                                       make_grid(randombgr_pred_phas.flatten(0, 1), nrow=randombgr_pred_phas.size(1)),
                                       self.step)
                 self.attention_visualizer(attention_to_log, self.step, 'hard_valid')
                 self.attention_visualizer(randombgr_attention_to_log, self.step, 'hard_valid_randombgr')
+                # self.attention_visualizer(randomnoisebgr_attention_to_log, self.step, 'hard_valid_randomnoisebgr')
 
             avg_loss = total_loss / total_count
             avg_mad = total_mad / total_count
