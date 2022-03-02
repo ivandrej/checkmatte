@@ -5,6 +5,7 @@ import argparse
 import os
 import random
 
+import numpy as np
 import torch
 from PIL import Image
 from torch import distributed as dist
@@ -419,6 +420,7 @@ class AbstractAttentionTrainer:
             self.model_ddp.eval()
             total_loss, total_count = 0, 0
             randombgr_and_correctbgr_total_mad, total_mad, randombgr_total_mad = 0, 0, 0
+            attentions_total_mad = 0
             pred_phas = []
             true_srcs = []
             precaptured_bgrs = []
@@ -439,7 +441,8 @@ class AbstractAttentionTrainer:
 
                         # Only read random bgr once for performance
                         if i == 0:
-                            random_bgr = self.read_random_bgr(true_src.shape).to(self.rank, non_blocking=True).unsqueeze(0)
+                            random_bgr = self.read_random_bgr(true_src.shape).to(self.rank,
+                                                                                 non_blocking=True).unsqueeze(0)
                             random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
 
                         # The last batch does not have exactly (batch_size, seq_len) dimensions
@@ -452,17 +455,19 @@ class AbstractAttentionTrainer:
                         batch_size = true_src.size(0)
                         _, pred_pha, attention = self.model(true_src, precaptured_bgr)[:3]
                         total_loss += pha_loss(pred_pha, true_pha)['total'].item() * batch_size
-                        total_mad += MetricMAD()(pred_pha, true_pha)
+                        total_mad += MetricMAD()(pred_pha, true_pha) * batch_size
                         total_count += batch_size
 
                         _, randombgr_pred_pha, randombgr_attention = self.model(true_src, random_bgr)[:3]
-                        randombgr_total_mad += MetricMAD()(randombgr_pred_pha, true_pha)
-                        randombgr_and_correctbgr_total_mad += MetricMAD()(randombgr_pred_pha, pred_pha)
+                        randombgr_total_mad += MetricMAD()(randombgr_pred_pha, true_pha) * batch_size
+                        randombgr_and_correctbgr_total_mad += MetricMAD()(randombgr_pred_pha, pred_pha) * batch_size
 
                         # Only log attention for the first sequence
                         if i == 0:
                             attention_to_log = attention
                             randombgr_attention_to_log = randombgr_attention
+
+                        attentions_total_mad += np.mean(np.absolute(attention - randombgr_attention)) * batch_size
 
                         if i == 0:  # only show first batch
                             pred_phas.append(pred_pha)
@@ -495,11 +500,14 @@ class AbstractAttentionTrainer:
             avg_mad = total_mad / total_count
             avg_randombgr_mad = randombgr_total_mad / total_count
             avg_randombgr_and_correctbgr_mad = randombgr_and_correctbgr_total_mad / total_count
+            avg_attentions_mad = attentions_total_mad / total_count
             self.log(f'Hard validation set average loss: {avg_loss}')
             self.log(f'Hard validation set MAD: {avg_mad}')
             self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
-            self.writer.add_scalar('hard_valid_randombgr_and_correctbgr_mad', avg_randombgr_and_correctbgr_mad, self.step)
+            self.writer.add_scalar('hard_valid_randombgr_and_correctbgr_mad', avg_randombgr_and_correctbgr_mad,
+                                   self.step)
             self.writer.add_scalar('hard_valid_randombgr_mad', avg_randombgr_mad, self.step)
+            self.writer.add_scalar('hard_valid_attentions_mad', avg_attentions_mad, self.step)
 
             self.model_ddp.train()
         dist.barrier()
