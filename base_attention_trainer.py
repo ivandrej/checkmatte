@@ -318,10 +318,10 @@ class AbstractAttentionTrainer:
 
     def log_grad_norms(self):
         bgr_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone_bgr.features[16][0].weight.grad))
+            torch.flatten(self.model_ddp.module.bgr_backbone_grads()))
         self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
         person_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
+            torch.flatten(self.model_ddp.module.backbone_grads()))
         self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
         attention_key_grad_norm = torch.linalg.vector_norm(
             torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))

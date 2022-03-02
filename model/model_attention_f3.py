@@ -6,6 +6,7 @@ from typing import Optional, List
 
 from train_config import BGR_FRAME_DATA_PATHS
 from .mobilenetv3 import MobileNetV3LargeEncoder
+from .model_attention_addition import SpatialAttention
 from .resnet import ResNet50Encoder
 from .lraspp import LRASPP
 from .decoder import RecurrentDecoder, Projection
@@ -29,10 +30,9 @@ class MattingNetwork(nn.Module):
             self.backbone = MobileNetV3LargeEncoder(pretrained_backbone)
             self.backbone_bgr = MobileNetV3LargeEncoder(pretrained_backbone)
             self.aspp = LRASPP(960, 128)
-            self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
-            self.spatial_attention = SpatialAttention(128, 128, attention_visualizer)
+            self.spatial_attention = SpatialAttention(40, 40, attention_visualizer)
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
@@ -72,13 +72,12 @@ class MattingNetwork(nn.Module):
 
         f1, f2, f3, f4 = self.backbone(src_sm)
         f4 = self.aspp(f4)
-        f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
-        f4_bgr = self.aspp_bgr(f4_bgr)
+        f1_bgr, f2_bgr, f3_bgr, _ = self.backbone_bgr(bgr_sm)
 
-        bgr_guidance, attention = self.spatial_attention(f4, f4_bgr)
-        f4_combined = bgr_guidance + f4
+        bgr_guidance_f3, attention = self.spatial_attention(f3, f3_bgr)
+        f3_combined = bgr_guidance_f3 + f3
 
-        hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
+        hid, *rec = self.decoder(src_sm, f1, f2, f3_combined, f4, r1, r2, r3, r4)
 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)
@@ -104,54 +103,8 @@ class MattingNetwork(nn.Module):
         return x
 
     def bgr_backbone_grads(self):
-        return self.backbone_bgr.features[16][0].weight.grad
+        return self.backbone_bgr.features[6].block[0][0].weight.grad
 
     def backbone_grads(self):
-        return self.backbone.features[16][0].weight.grad
-
-class SpatialAttention(nn.Module):
-    def __init__(self, in_channels, out_channels, attention_visualizer):
-        super().__init__()
-        self.attention_visualizer = attention_visualizer
-        self.query_conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.key_conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.softmax = nn.Softmax(dim=-1)
-
-    def forward_single_frame(self, p, b):
-        assert(p.shape == b.shape)
-        H, W = p.shape[-2:]
-        # query = person frames, key = background frames, value = background frames
-        query = self.query_conv(p).flatten(2, 3)  # B x C x N
-        query = query.permute(0, 2, 1)  # B x N x C
-        key = self.key_conv(b).flatten(2, 3)  # B x C x N
-
-        energy = torch.bmm(query, key)  # B x N x N
-        attention = self.softmax(energy)  # B x N x N
-
-        value = b.flatten(2, 3).permute(0, 2, 1)  # B x C x N --> B x N x C
-        out = torch.bmm(attention, value)  # B x N x C
-        out = out.permute(0, 2, 1)  # B x C x N
-        out = out.unflatten(-1, (H, W))  # B x C x H x W
-
-        if self.attention_visualizer:
-            self.attention_visualizer(attention.view(-1, H, W, H, W))
-
-        return out, attention
-
-    def forward_time_series(self, p, b):
-        assert (p.shape == b.shape)
-        B, T, _, H, W = p.shape
-        features, attention = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
-        features = features.unflatten(0, (B, T))
-        # attention = attention.unflatten(0, (B, T))
-        attention = attention.view(B, T, H, W, H, W).detach().cpu().numpy()
-        return features, attention
-
-    def forward(self, p, b):
-        assert(p.shape == b.shape)
-        if p.ndim == 5:
-            return self.forward_time_series(p, b)
-        else:
-            return self.forward_single_frame(p, b)
-
+        return self.backbone.features[6].block[0][0].weight.grad
 
