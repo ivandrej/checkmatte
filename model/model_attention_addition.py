@@ -36,8 +36,12 @@ class MattingNetwork(nn.Module):
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
+            print("Variant is Resnet50")
             self.backbone = ResNet50Encoder(pretrained_backbone)
+            self.backbone_bgr = ResNet50Encoder(pretrained_backbone)
             self.aspp = LRASPP(2048, 256)
+            self.aspp_bgr = LRASPP(2048, 256)
+            self.spatial_attention = SpatialAttention(256, 256, attention_visualizer)
             self.decoder = RecurrentDecoder([64, 256, 512, 256], [128, 64, 32, 16])
 
         self.project_mat = Projection(16, 4)
@@ -104,10 +108,17 @@ class MattingNetwork(nn.Module):
         return x
 
     def bgr_backbone_grads(self):
-        return self.backbone_bgr.features[16][0].weight.grad
+        if type(self.backbone) == ResNet50Encoder:
+            return self.backbone_bgr.layer4[0].conv3.weight.grad
+        else:
+            return self.backbone_bgr.features[16][0].weight.grad
+
 
     def backbone_grads(self):
-        return self.backbone.features[16][0].weight.grad
+        if type(self.backbone) == ResNet50Encoder:
+            return self.backbone.layer4[0].conv3.weight.grad
+        else:
+            return self.backbone.features[16][0].weight.grad
 
 class SpatialAttention(nn.Module):
     def __init__(self, in_channels, out_channels, attention_visualizer):
