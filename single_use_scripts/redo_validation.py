@@ -4,6 +4,8 @@ import sys
 import numpy as np
 
 sys.path.append('..')
+from train_attention import AttentionAdditionTrainer
+
 
 from torch import distributed as dist
 from torch.cuda.amp import autocast
@@ -25,7 +27,7 @@ from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoM
 from train_config import BGR_FRAME_DATA_PATHS
 
 
-class ValidationOnlyTrainer(AbstractAttentionTrainer):
+class ValidationOnlyTrainer(AttentionAdditionTrainer):
     def __init__(self, rank, world_size):
         self.parse_args()
         self.init_distributed(rank, world_size)
@@ -34,9 +36,6 @@ class ValidationOnlyTrainer(AbstractAttentionTrainer):
         self.init_writer()
         self.train()
         self.cleanup()
-
-    def custom_args(self, parser):
-        parser.add_argument('--model-type', type=str, choices=['addition', 'concat'], default='addition')
 
     def init_datasets(self):
         self.log('Initializing matting datasets')
@@ -76,40 +75,6 @@ class ValidationOnlyTrainer(AbstractAttentionTrainer):
             pin_memory=True)
 
         self.random_bgr_path = BGR_FRAME_DATA_PATHS["room"]
-
-    def init_network(self):
-        if self.args.model_type == 'addition':
-            self.model = model_attention_addition.MattingNetwork(self.args.model_variant,
-                                                                 pretrained_backbone=True,
-                                                                 pretrained_on_rvm=self.args.pretrained_on_rvm).to(
-                self.rank)
-
-            self.param_lrs = [
-                {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
-                {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
-                # {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
-                {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
-                {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
-                {'params': self.model.spatial_attention.parameters(),
-                 'lr': self.args.learning_rate_backbone},
-                {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
-                {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp}]
-        else:
-            self.model = model_attention_concat.MattingNetwork(self.args.model_variant,
-                                                               pretrained_backbone=True,
-                                                               pretrained_on_rvm=self.args.pretrained_on_rvm).to(
-                self.rank)
-
-            self.param_lrs = [
-                {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
-                {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
-                {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
-                {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
-                {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
-                {'params': self.model.spatial_attention.parameters(),
-                 'lr': self.args.learning_rate_backbone},
-                {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
-                {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp}]
 
     def train(self):
         checkpoint_dir = self.args.checkpoint

@@ -30,6 +30,7 @@ class MattingNetwork(nn.Module):
             self.backbone = MobileNetV3LargeEncoder(pretrained_backbone)
             self.backbone_bgr = MobileNetV3LargeEncoder(pretrained_backbone)
             self.aspp = LRASPP(960, 128)
+            self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
             self.spatial_attention = SpatialAttention(40, 40, attention_visualizer)
