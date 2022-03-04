@@ -1,6 +1,7 @@
 import io
 import os
 
+import numpy
 import numpy as np
 import seaborn as sns
 import torch
@@ -57,15 +58,19 @@ class TrainVisualizer:
 
     def __call__(self, attention, step, tag):
         assert (attention.ndim == 6)
+        # Only take first sequence in the batch
         attention = attention[0]
         T, H, W, _, _ = attention.shape
 
+        dha_total, cnt = 0, 0
         for h, w in key_spatial_locations(H, W):
             figures = []
             for t in range(T):
+                attention_matrix = attention[t][h][w]
+                dha_total += metric_DHA(attention_matrix, h, w)
                 figure = plot_attention(attention, h, w, t)
                 figures.append(figure)
-
+                cnt += 1
             # Add batch dim, currently ignored in plot method
             figures = torch.from_numpy(np.array(figures)).unsqueeze(0)
             figures = figures.permute(0, 1, 4, 2, 3)  # B, T, H, W, C  --> B, T, C, H, W
@@ -73,10 +78,14 @@ class TrainVisualizer:
                                   make_grid(figures.flatten(0, 1), nrow=figures.size(1)),
                                   step)
 
+        dha_avg = dha_total / cnt
+        self.writer.add_scalar(f'{tag}_attention_dha', dha_avg, step)
+
 
 def plot_attention(attention, h, w, t):
     attention_matrix = attention[t][h][w]
     attention_matrix = attention_matrix * 100
+
     ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
 
     # h and w are swapped in pyplot plots compared to numpy arrays
@@ -96,6 +105,19 @@ def plot_attention(attention, h, w, t):
     figure.clear()
     return img
 
+
+"""
+    DHA = distance of highest activation
+"""
+def metric_DHA(attention_matrix, h, w):
+    max_h, max_w = matrix_argmax(attention_matrix)
+
+    return min(np.abs(h - max_h), np.abs(w - max_w))
+
+
+def matrix_argmax(m: numpy.ndarray):
+    assert (m.ndim == 2)
+    return np.unravel_index(np.argmax(m, axis=None), m.shape)
 
 """
  The most important spatial locations in the person feature map.
