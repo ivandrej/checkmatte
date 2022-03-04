@@ -31,7 +31,8 @@ from evaluation.evaluation_metrics import MetricMAD
 from model.model_attention_addition import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss, pha_loss
-from visualize_attention import TrainVisualizer
+from visualize_attention import TrainVisualizer, calc_avg_dha
+
 
 class AbstractAttentionTrainer:
     def __init__(self, rank, world_size):
@@ -423,6 +424,7 @@ class AbstractAttentionTrainer:
             self.model_ddp.eval()
             total_loss, total_count = 0, 0
             randombgr_and_correctbgr_total_mad, total_mad, randombgr_total_mad = 0, 0, 0
+            # total_dha, randombgr_total_dha = 0, 0
             attentions_total_mad = 0
             pred_phas = []
             true_srcs = []
@@ -475,6 +477,9 @@ class AbstractAttentionTrainer:
                             randombgr_attention_to_log = randombgr_attention
                             # randomnoisebgr_attention_to_log = randomnoisebgr_attention
 
+                        # total_dha = calc_avg_dha(attention) * batch_size
+                        # randombgr_total_dha = calc_avg_dha(randombgr_attention) * batch_size
+                        # print("Random bgr dha for batch: ", randombgr_total_dha / batch_size)
                         attentions_total_mad += np.mean(np.absolute(attention - randombgr_attention)) * batch_size
 
                         if i == 0:  # only show first batch
@@ -513,6 +518,8 @@ class AbstractAttentionTrainer:
             avg_randombgr_mad = randombgr_total_mad / total_count
             avg_randombgr_and_correctbgr_mad = randombgr_and_correctbgr_total_mad / total_count
             avg_attentions_mad = attentions_total_mad / total_count
+            # avg_dha = total_dha / total_count
+            # randombgr_avg_dha = randombgr_total_dha / total_count
             self.log(f'Hard validation set average loss: {avg_loss}')
             self.log(f'Hard validation set MAD: {avg_mad}')
             self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
@@ -520,6 +527,8 @@ class AbstractAttentionTrainer:
                                    self.step)
             self.writer.add_scalar('hard_valid_randombgr_mad', avg_randombgr_mad, self.step)
             self.writer.add_scalar('hard_valid_attentions_mad', avg_attentions_mad, self.step)
+            # self.writer.add_scalar('hard_valid_attention_dha', avg_dha, self.step)
+            # self.writer.add_scalar('hard_valid_randombgr_attention_dha', randombgr_avg_dha, self.step)
 
             self.model_ddp.train()
         dist.barrier()

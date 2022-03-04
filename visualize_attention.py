@@ -82,6 +82,20 @@ class TrainVisualizer:
         self.writer.add_scalar(f'{tag}_attention_dha', dha_avg, step)
 
 
+def calc_avg_dha(attention):
+    B, T, H, W, _, _ = attention.shape
+
+    dha_total, cnt = 0, 0
+    for b in range(attention.shape[0]):
+        for h, w in key_spatial_locations(H, W):
+            for t in range(T):
+                attention_matrix = attention[0][t][h][w]
+                dha_total += metric_DHA(attention_matrix, h, w)
+                cnt += 1
+
+    dha_avg = dha_total / cnt
+    return dha_avg
+
 def plot_attention(attention, h, w, t):
     attention_matrix = attention[t][h][w]
     attention_matrix = attention_matrix * 100
