@@ -264,6 +264,9 @@ class AbstractAttentionTrainer:
             for loss_name, loss_value in loss.items():
                 self.writer.add_scalar(f'train_{tag}_{loss_name}', loss_value, self.step)
 
+            train_mad = MetricMAD()(pred_pha, true_pha)
+            self.writer.add_scalar(f'train_{tag}_pha_mad', train_mad, self.step)
+
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
             self.attention_visualizer(attention, self.step, 'train')
