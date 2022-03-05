@@ -51,6 +51,8 @@ class Visualizer:
       - 4 key locations
       - first sequence in batch
       - all frames
+      
+    Returns avg dha score over the whole batch 
 """
 class TrainVisualizer:
     def __init__(self, writer):
@@ -62,15 +64,12 @@ class TrainVisualizer:
         attention = attention[0]
         T, H, W, _, _ = attention.shape
 
-        dha_total, cnt = 0, 0
         for h, w in key_spatial_locations(H, W):
             figures = []
             for t in range(T):
-                attention_matrix = attention[t][h][w]
-                dha_total += metric_DHA(attention_matrix, h, w)
                 figure = plot_attention(attention, h, w, t)
                 figures.append(figure)
-                cnt += 1
+
             # Add batch dim, currently ignored in plot method
             figures = torch.from_numpy(np.array(figures)).unsqueeze(0)
             figures = figures.permute(0, 1, 4, 2, 3)  # B, T, H, W, C  --> B, T, C, H, W
@@ -78,18 +77,20 @@ class TrainVisualizer:
                                   make_grid(figures.flatten(0, 1), nrow=figures.size(1)),
                                   step)
 
-        dha_avg = dha_total / cnt
-        self.writer.add_scalar(f'{tag}_attention_dha', dha_avg, step)
-
-
+"""
+    DHA average over all frames of all batches.
+    4 person anchor positions sampled.
+"""
 def calc_avg_dha(attention):
+    assert (attention.ndim == 6)
     B, T, H, W, _, _ = attention.shape
 
     dha_total, cnt = 0, 0
-    for b in range(attention.shape[0]):
+    for b in range(B):
         for h, w in key_spatial_locations(H, W):
             for t in range(T):
-                attention_matrix = attention[0][t][h][w]
+                attention_matrix = attention[b][t][h][w]
+                # print("Single DHA: ", metric_DHA(attention_matrix, h, w))
                 dha_total += metric_DHA(attention_matrix, h, w)
                 cnt += 1
 
