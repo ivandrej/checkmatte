@@ -127,7 +127,8 @@ def plot_attention(attention, h, w, t):
 def metric_DHA(attention_matrix, h, w):
     max_h, max_w = matrix_argmax(attention_matrix)
 
-    return min(np.abs(h - max_h), np.abs(w - max_w))
+    return numpy.linalg.norm([max_h - h, max_w - w])  # Euclidean distance
+    # return min(np.abs(h - max_h), np.abs(w - max_w))
 
 
 def matrix_argmax(m: numpy.ndarray):
