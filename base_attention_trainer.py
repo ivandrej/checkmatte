@@ -280,10 +280,14 @@ class AbstractAttentionTrainer:
         random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
         random_bgr = random_bgr.to(self.rank, non_blocking=True)
 
-        _, randombgr_pred_pha, attention = self.model_ddp(true_src,
-                                                          random_bgr,
-                                                          downsample_ratio=downsample_ratio)[:3]
-        self.log_randombgr_metrics(attention, pred_pha, randombgr_pred_pha, tag, true_pha)
+        self.model_ddp.eval()
+        with torch.no_grad():
+            _, randombgr_pred_pha, attention = self.model_ddp(true_src,
+                                                              random_bgr,
+                                                              downsample_ratio=downsample_ratio)[:3]
+            self.log_randombgr_metrics(attention, pred_pha, randombgr_pred_pha, tag, true_pha)
+
+        self.model_ddp.train()
 
     def validate_hard(self):
         if self.rank == 0:
