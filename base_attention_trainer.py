@@ -283,144 +283,7 @@ class AbstractAttentionTrainer:
         _, randombgr_pred_pha, attention = self.model_ddp(true_src,
                                                           random_bgr,
                                                           downsample_ratio=downsample_ratio)[:3]
-        random_bgr_mad = MetricMAD()(randombgr_pred_pha, true_pha)
-        self.writer.add_scalar(f'{tag}_wrongbgr_mad', random_bgr_mad, self.step)
-        mad_random_and_correct_pha = MetricMAD()(randombgr_pred_pha, pred_pha)
-        self.writer.add_scalar(f'{tag}_wrongbgr_and_correctbgr_mad', mad_random_and_correct_pha, self.step)
-        self.writer.add_image(f'{tag}_pred_pha_wrongbgr',
-                              make_grid(randombgr_pred_pha.flatten(0, 1), nrow=randombgr_pred_pha.size(1)),
-                              self.step)
-        self.attention_visualizer(attention, self.step, f'{tag}_wrongbgr')
-        train_wrongbgr_avg_dha = calc_avg_dha(attention)
-        self.writer.add_scalar(f'{tag}_wrongbgr_attention_dha', train_wrongbgr_avg_dha, self.step)
-
-    def read_random_bgr(self, true_shape):
-        _, T, _, H, W = true_shape
-        frames = []
-        i = 0
-        for frameid in sorted(os.listdir(self.random_bgr_path)):
-            if i == self.args.seq_length_lr:
-                break
-
-            with Image.open(os.path.join(self.random_bgr_path, frameid)) as frm:
-                frames.append(frm.convert('RGB').resize((W, H)))
-            i += 1
-
-        frames = torch.stack([transforms.functional.to_tensor(frm) for frm in frames])
-        return frames
-
-    def log_train_predictions(self, precaptured_bgr, pred_pha, true_pha, true_src):
-        # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
-        #                       self.step)
-        self.writer.add_image(f'train_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
-                              self.step)
-        # self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
-        #                       self.step)
-        self.writer.add_image(f'train_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
-                              self.step)
-        self.writer.add_image(f'train_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
-                              self.step)
-        self.writer.add_image(f'train_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
-                                                                  nrow=precaptured_bgr.size(1)),
-                              self.step)
-
-    def log_grad_norms(self):
-        bgr_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.bgr_backbone_grads()))
-        self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
-        person_encoder_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.backbone_grads()))
-        self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
-        attention_key_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))
-        self.writer.add_scalar(f'attention_key_grad_norm', attention_key_grad_norm, self.step)
-        attention_query_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.spatial_attention.query_conv.weight.grad))
-        self.writer.add_scalar(f'attention_query_grad_norm', attention_query_grad_norm, self.step)
-
-    def load_next_mat_hr_sample(self):
-        try:
-            sample = next(self.dataiterator_mat_hr)
-        except:
-            self.datasampler_hr_train.set_epoch(self.datasampler_hr_train.epoch + 1)
-            self.dataiterator_mat_hr = iter(self.dataloader_hr_train)
-            sample = next(self.dataiterator_mat_hr)
-        return sample
-
-    def load_next_varied_bgr_sample(self):
-        try:
-            sample = next(self.dataiterator_mat_varied)
-        except:
-            self.datasampler_varied_train.set_epoch(self.datasampler_varied_train.epoch + 1)
-            self.dataiterator_mat_varied = iter(self.dataloader_varied_train)
-            sample = next(self.dataiterator_mat_varied)
-        return sample
-
-    def load_next_seg_video_sample(self):
-        try:
-            sample = next(self.dataiterator_seg_video)
-        except:
-            self.datasampler_seg_video.set_epoch(self.datasampler_seg_video.epoch + 1)
-            self.dataiterator_seg_video = iter(self.dataloader_seg_video)
-            sample = next(self.dataiterator_seg_video)
-        return sample
-
-    def validate(self):
-        if self.rank == 0:
-            self.log(f'Validating at the start of epoch: {self.epoch}')
-            self.model_ddp.eval()
-            total_loss, total_count, total_mad = 0, 0, 0
-            pred_phas = []
-            true_srcs = []
-            precaptured_bgrs = []
-            i = 0
-            with torch.no_grad():
-                with autocast(enabled=not self.args.disable_mixed_precision):
-                    for true_fgr, true_pha, true_bgr, precaptured_bgr in tqdm(self.dataloader_valid,
-                                                                              disable=self.args.disable_progress_bar,
-                                                                              dynamic_ncols=True):
-                        true_fgr = true_fgr.to(self.rank, non_blocking=True)
-                        true_pha = true_pha.to(self.rank, non_blocking=True)
-                        true_bgr = true_bgr.to(self.rank, non_blocking=True)
-                        precaptured_bgr = precaptured_bgr.to(self.rank, non_blocking=True)
-                        true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
-                        if self.step == 0 and total_count == 0:  # only print once
-                            print("Validation batch shape: ", true_src.shape)
-
-                        batch_size = true_src.size(0)
-                        _, pred_pha = self.model(true_src, precaptured_bgr)[:2]
-                        total_loss += pha_loss(pred_pha, true_pha)['total'].item() * batch_size
-                        total_mad += MetricMAD()(pred_pha, true_pha)
-                        total_count += batch_size
-
-                        if i % 12 == 0:  # reduces number of samples to show
-                            pred_phas.append(pred_pha)
-                            true_srcs.append(true_src)
-                            precaptured_bgrs.append(precaptured_bgr)
-                        i += 1
-            avg_loss = total_loss / total_count
-            avg_mad = total_mad / total_count
-            pred_phas = torch.cat(pred_phas, dim=0)
-            true_srcs = torch.cat(true_srcs, dim=0)
-            precaptured_bgrs = torch.cat(precaptured_bgrs, dim=0)
-
-            if self.rank == 0:
-                self.writer.add_image(f'valid_pred_pha',
-                                      make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
-                                      self.step)
-                self.writer.add_image(f'valid_true_src',
-                                      make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
-                                      self.step)
-                self.writer.add_image(f'valid_precaptured_bgr',
-                                      make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
-                                      self.step)
-
-            self.log(f'Validation set average loss: {avg_loss}')
-            self.log(f'Validation MAD: {avg_mad}')
-            self.writer.add_scalar('valid_loss', avg_loss, self.step)
-            self.writer.add_scalar('valid_mad', avg_mad, self.step)
-            self.model_ddp.train()
-        dist.barrier()
+        self.log_randombgr_metrics(attention, pred_pha, randombgr_pred_pha, tag, true_pha)
 
     def validate_hard(self):
         if self.rank == 0:
@@ -498,49 +361,106 @@ class AbstractAttentionTrainer:
             randombgr_pred_phas = randombgr_pred_phas[0]
 
             if self.rank == 0:
-                self.writer.add_image(f'hard_valid_pred_pha',
-                                      make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
-                                      self.step)
-                self.writer.add_image(f'hard_valid_true_src',
-                                      make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
-                                      self.step)
-                self.writer.add_image(f'hard_valid_precaptured_bgr',
-                                      make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
-                                      self.step)
-                # self.writer.add_image(f'hard_valid_randomnoisebgr',
-                #                       make_grid(random_noise_bgr.flatten(0, 1), nrow=random_noise_bgr.size(1)),
-                #                       self.step)
-                self.writer.add_image(f'hard_valid_pred_pha_wrongbgr',
-                                      make_grid(randombgr_pred_phas.flatten(0, 1), nrow=randombgr_pred_phas.size(1)),
-                                      self.step)
-                self.attention_visualizer(attention_to_log, self.step, 'hard_valid')
-                self.attention_visualizer(randombgr_attention_to_log, self.step, 'hard_valid_randombgr')
-                # self.attention_visualizer(randomnoisebgr_attention_to_log, self.step, 'hard_valid_randomnoisebgr')
+                self.log_valid_images(attention_to_log, precaptured_bgrs, pred_phas, randombgr_attention_to_log,
+                                      randombgr_pred_phas, true_srcs)
 
-            # Loss
-            avg_loss = total_loss / total_count
-            self.log(f'Hard validation set average loss: {avg_loss}')
-
-            # MAD
-            avg_mad = total_mad / total_count
-            avg_randombgr_mad = randombgr_total_mad / total_count
-            avg_randombgr_and_correctbgr_mad = randombgr_and_correctbgr_total_mad / total_count
-            avg_attentions_mad = attentions_total_mad / total_count
-            self.log(f'Hard validation set MAD: {avg_mad}')
-            self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
-            self.writer.add_scalar('hard_valid_randombgr_and_correctbgr_mad', avg_randombgr_and_correctbgr_mad,
-                                   self.step)
-            self.writer.add_scalar('hard_valid_randombgr_mad', avg_randombgr_mad, self.step)
-            self.writer.add_scalar('hard_valid_attentions_mad', avg_attentions_mad, self.step)
-
-            # DHA
-            avg_dha = total_dha / total_count
-            randombgr_avg_dha = randombgr_total_dha / total_count
-            self.writer.add_scalar('hard_valid_attention_dha', avg_dha, self.step)
-            self.writer.add_scalar('hard_valid_randombgr_attention_dha', randombgr_avg_dha, self.step)
+            self.log_valid_metrics(attentions_total_mad, randombgr_and_correctbgr_total_mad, randombgr_total_dha,
+                                   randombgr_total_mad, total_count, total_dha, total_loss, total_mad)
 
             self.model_ddp.train()
         dist.barrier()
+
+    # LOGGING HELPERS
+
+    def log_train_predictions(self, precaptured_bgr, pred_pha, true_pha, true_src):
+        # self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)),
+        #                       self.step)
+        self.writer.add_image(f'train_pred_pha', make_grid(pred_pha.flatten(0, 1), nrow=pred_pha.size(1)),
+                              self.step)
+        # self.writer.add_image(f'train_{tag}_true_fgr', make_grid(true_fgr.flatten(0, 1), nrow=true_fgr.size(1)),
+        #                       self.step)
+        self.writer.add_image(f'train_true_pha', make_grid(true_pha.flatten(0, 1), nrow=true_pha.size(1)),
+                              self.step)
+        self.writer.add_image(f'train_true_src', make_grid(true_src.flatten(0, 1), nrow=true_src.size(1)),
+                              self.step)
+        self.writer.add_image(f'train_precaptured_bgr', make_grid(precaptured_bgr.flatten(0, 1),
+                                                                  nrow=precaptured_bgr.size(1)),
+                              self.step)
+
+    def log_valid_metrics(self, attentions_total_mad, randombgr_and_correctbgr_total_mad, randombgr_total_dha,
+                          randombgr_total_mad, total_count, total_dha, total_loss, total_mad):
+        # Loss
+        avg_loss = total_loss / total_count
+        self.log(f'Hard validation set average loss: {avg_loss}')
+        # MAD
+        avg_mad = total_mad / total_count
+        avg_randombgr_mad = randombgr_total_mad / total_count
+        avg_randombgr_and_correctbgr_mad = randombgr_and_correctbgr_total_mad / total_count
+        avg_attentions_mad = attentions_total_mad / total_count
+        self.log(f'Hard validation set MAD: {avg_mad}')
+        self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
+        self.writer.add_scalar('hard_valid_randombgr_and_correctbgr_mad', avg_randombgr_and_correctbgr_mad,
+                               self.step)
+        self.writer.add_scalar('hard_valid_randombgr_mad', avg_randombgr_mad, self.step)
+        self.writer.add_scalar('hard_valid_attentions_mad', avg_attentions_mad, self.step)
+        # DHA
+        avg_dha = total_dha / total_count
+        randombgr_avg_dha = randombgr_total_dha / total_count
+        self.writer.add_scalar('hard_valid_attention_dha', avg_dha, self.step)
+        self.writer.add_scalar('hard_valid_randombgr_attention_dha', randombgr_avg_dha, self.step)
+
+    def log_valid_images(self, attention_to_log, precaptured_bgrs, pred_phas, randombgr_attention_to_log,
+                         randombgr_pred_phas, true_srcs):
+        self.writer.add_image(f'hard_valid_pred_pha',
+                              make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
+                              self.step)
+        self.writer.add_image(f'hard_valid_true_src',
+                              make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
+                              self.step)
+        self.writer.add_image(f'hard_valid_precaptured_bgr',
+                              make_grid(precaptured_bgrs.flatten(0, 1), nrow=precaptured_bgrs.size(1)),
+                              self.step)
+        # self.writer.add_image(f'hard_valid_randomnoisebgr',
+        #                       make_grid(random_noise_bgr.flatten(0, 1), nrow=random_noise_bgr.size(1)),
+        #                       self.step)
+        self.writer.add_image(f'hard_valid_pred_pha_wrongbgr',
+                              make_grid(randombgr_pred_phas.flatten(0, 1), nrow=randombgr_pred_phas.size(1)),
+                              self.step)
+        self.attention_visualizer(attention_to_log, self.step, 'hard_valid')
+        self.attention_visualizer(randombgr_attention_to_log, self.step, 'hard_valid_randombgr')
+        # self.attention_visualizer(randomnoisebgr_attention_to_log, self.step, 'hard_valid_randomnoisebgr')
+
+    def log_grad_norms(self):
+        bgr_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.bgr_backbone_grads()))
+        self.writer.add_scalar(f'bgr_encoder_grad_norm', bgr_encoder_grad_norm, self.step)
+        person_encoder_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.backbone_grads()))
+        self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
+        attention_key_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))
+        self.writer.add_scalar(f'attention_key_grad_norm', attention_key_grad_norm, self.step)
+        attention_query_grad_norm = torch.linalg.vector_norm(
+            torch.flatten(self.model_ddp.module.spatial_attention.query_conv.weight.grad))
+        self.writer.add_scalar(f'attention_query_grad_norm', attention_query_grad_norm, self.step)
+
+    """
+        Logs MAD metric
+        Logs image predictions and attention maps 
+    """
+    def log_randombgr_metrics(self, attention, pred_pha, randombgr_pred_pha, tag, true_pha):
+        random_bgr_mad = MetricMAD()(randombgr_pred_pha, true_pha)
+        self.writer.add_scalar(f'{tag}_wrongbgr_mad', random_bgr_mad, self.step)
+        mad_random_and_correct_pha = MetricMAD()(randombgr_pred_pha, pred_pha)
+        self.writer.add_scalar(f'{tag}_wrongbgr_and_correctbgr_mad', mad_random_and_correct_pha, self.step)
+        self.writer.add_image(f'{tag}_pred_pha_wrongbgr',
+                              make_grid(randombgr_pred_pha.flatten(0, 1), nrow=randombgr_pred_pha.size(1)),
+                              self.step)
+        self.attention_visualizer(attention, self.step, f'{tag}_wrongbgr')
+        train_wrongbgr_avg_dha = calc_avg_dha(attention)
+        self.writer.add_scalar(f'{tag}_wrongbgr_attention_dha', train_wrongbgr_avg_dha, self.step)
+
+    # MISCELLANEOUS UTILS
 
     def random_crop(self, *imgs):
         h, w = imgs[0].shape[-2:]
@@ -555,6 +475,21 @@ class AbstractAttentionTrainer:
             img = img.reshape(B, T, *img.shape[1:])
             results.append(img)
         return results
+
+    def read_random_bgr(self, true_shape):
+        _, T, _, H, W = true_shape
+        frames = []
+        i = 0
+        for frameid in sorted(os.listdir(self.random_bgr_path)):
+            if i == self.args.seq_length_lr:
+                break
+
+            with Image.open(os.path.join(self.random_bgr_path, frameid)) as frm:
+                frames.append(frm.convert('RGB').resize((W, H)))
+            i += 1
+
+        frames = torch.stack([transforms.functional.to_tensor(frm) for frm in frames])
+        return frames
 
     def save(self):
         if self.rank == 0:
