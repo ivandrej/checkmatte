@@ -12,16 +12,17 @@ from inference import convert_video, FixedOffsetMatcher
 
 import argparse
 
-from visualize_attention import Visualizer
+from evaluation.perform_experiment import get_model
+from visualize_attention import TestVisualizer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)
 parser.add_argument('--bgr-source', type=str, default=None)
 # only relevant if --bgr-source is specified
-parser.add_argument('--model', type=str, choices=['concat', 'attention_concat', 'attention_addition'],
-                    default='attention_addition')
+parser.add_argument('--model-type', type=str, choices=['addition', 'concat', 'f3'], default='addition')
 parser.add_argument('--out-dir', type=str, required=True)
 parser.add_argument('--load-model', type=str, required=True)
+parser.add_argument('--temporal-offset', type=int, default=0)
 parser.add_argument('--output-type', type=str, default='video', required=False)
 parser.add_argument('--resize', type=int, default=(512, 288), nargs=2)
 parser.add_argument('--epochs', '--list', nargs='+', required=True)
@@ -33,24 +34,9 @@ if not os.path.exists(args.out_dir):
 for epoch in args.epochs:
     out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
 
-    if args.bgr_source:
-        if args.model == 'attention_addition':
-            visualizer = Visualizer(out_dir)
-            model = model_attention_addition.MattingNetwork("mobilenetv3",
-                                                            pretrained_on_rvm=False,
-                                                            attention_visualizer=None).eval().cuda()
-        elif args.model == 'attention_concat':
-            visualizer = Visualizer(out_dir)
-            model = model_attention_concat.MattingNetwork("mobilenetv3",
-                                                          pretrained_on_rvm=False,
-                                                          attention_visualizer=visualizer).eval().cuda()
-        else:
-            raise Exception(f"{args.model} not supported")
-    else:
-        model = model.MattingNetwork("mobilenetv3").eval().cuda()
-
+    model = get_model(args.model_type).eval().cuda()
     model.load_state_dict(torch.load(os.path.join(args.load_model, f"epoch-{epoch}.pth")))
-    matcher = FixedOffsetMatcher(0)
+    matcher = FixedOffsetMatcher(args.temporal_offset)
 
     if args.output_type == 'video':
         convert_video(
@@ -81,6 +67,7 @@ for epoch in args.epochs:
             # output_composition=f"{out_dir}/com",
             output_alpha=f"{out_dir}/pha",  # [Optional] Output the raw alpha prediction.
             bgr_src_pairs=f"{out_dir}/bgr_src",
+            output_attention=f"{out_dir}/attention",
             # output_foreground=f"{out_dir}/fgr",
             # [Optional] Output the raw foreground prediction.
             seq_chunk=12,  # Process n frames at once for better parallelism.

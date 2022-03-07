@@ -11,6 +11,9 @@ from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, Image
 
 
 # TODO: Move to separate class
+from visualize_attention import TestVisualizer
+
+
 class FixedOffsetMatcher:
     def __init__(self, offset):
         self.offset = offset
@@ -33,6 +36,7 @@ def convert_video(model,
                   output_alpha: Optional[str] = None,
                   output_foreground: Optional[str] = None,
                   bgr_src_pairs: Optional[str] = None,
+                  output_attention: Optional[str] = None,
                   output_video_mbps: Optional[float] = None,
                   seq_chunk: int = 1,
                   num_workers: int = 0,
@@ -122,6 +126,8 @@ def convert_video(model,
             writer_fgr = ImageSequenceWriter(output_foreground, 'png')
         if bgr_src_pairs is not None:
             writer_bgr = ImagePairSequenceWriter(bgr_src_pairs, 'png')
+        if output_attention is not None:
+            attention_visualizer = TestVisualizer(output_attention)
 
     # Inference
     model = model.eval()
@@ -153,7 +159,7 @@ def convert_video(model,
 
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
                 bgr = bgr.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
-                fgr, pha, _, *rec = model(src, bgr, *rec, downsample_ratio)
+                fgr, pha, attention, *rec = model(src, bgr, *rec, downsample_ratio)
 
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])
@@ -168,6 +174,8 @@ def convert_video(model,
                     writer_com.write(com[0])
                 if bgr_src_pairs is not None:
                     writer_bgr.write(bgr[0], src[0])
+                if output_attention is not None:
+                    attention_visualizer(attention[0])
 
                 bar.update(src.size(1))
     except Exception as e:

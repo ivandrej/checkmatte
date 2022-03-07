@@ -26,7 +26,15 @@ def read_args():
     parser.add_argument('--temporal-offset', type=int, default=0)
     parser.add_argument('--num-workers', type=int, default=8)
     parser.add_argument('--skip-compose', action="store_true")
+    parser.add_argument('--random-bgr', action="store_true")
     return parser.parse_args()
+
+def replace_bgr_with_random_bgr(clips):
+    leonhardstrasse_bgr = '/media/andivanov/DATA/dynamic_backgrounds_captured/img_seq/leonhardstrasse_building'
+    for clip in clips:
+        clip.bgr_path = leonhardstrasse_bgr
+
+    return clips
 
 if __name__ == "__main__":
     args = read_args()
@@ -34,6 +42,8 @@ if __name__ == "__main__":
     out_dir = os.path.join(args.experiment_dir)
 
     clips = read_metadata(args.experiment_metadata)
+    if args.random_bgr:
+        clips = replace_bgr_with_random_bgr(clips)
 
     print("Performing inference...")
     perform_experiment.inference(args.experiment_dir, args.model_type, args.load_model, input_dir, clips, args.resize,

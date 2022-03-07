@@ -20,7 +20,7 @@ from torchvision.utils import make_grid
 """
 
 
-class Visualizer:
+class TestVisualizer:
     def __init__(self, outdir):
         self.outdir = outdir
         self.frameidx = 0
@@ -28,22 +28,19 @@ class Visualizer:
     # First frame of sequence only
     # All pixels
     def __call__(self, attention):
-        assert (attention.dim() == 5)
+        assert (attention.ndim == 5)
         T, H, W, _, _ = attention.shape
 
-        # h = H // 2
-        # w = W // 2
-        for h in range(0, H, 3):
-            for w in range(0, W, 3):
-                figure = plot_attention(attention, h, w, 0)
+        for h, w in key_spatial_locations(H, W):
+            figure = get_attention_fig(attention, h, w, 0)
 
-                frame_out_dir = os.path.join(self.outdir, "attention_visualization", f"{h}-{w}")
-                if not os.path.exists(frame_out_dir):
-                    os.makedirs(frame_out_dir)
+            frame_out_dir = os.path.join(self.outdir, f"{h}-{w}")
+            os.makedirs(frame_out_dir, exist_ok=True)
 
-                figure.savefig(os.path.join(frame_out_dir, f"{self.frameidx}.png"))
-                figure.clear()
+            figure.savefig(os.path.join(frame_out_dir, f"{self.frameidx}.png"))
+            figure.clear()
         self.frameidx += T
+
 
 
 """
@@ -98,27 +95,35 @@ def calc_avg_dha(attention):
     return dha_avg
 
 def plot_attention(attention, h, w, t):
-    attention_matrix = attention[t][h][w]
-    attention_matrix = attention_matrix * 100
-
-    ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
-
-    # h and w are swapped in pyplot plots compared to numpy arrays
-    ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='white', linewidth=2))
-    figure = ax.get_figure()
+    figure = get_attention_fig(attention, h, w, t)
 
     # Store plot in a buffer in memory
+    img = fig_to_img(figure)
+    return img
+
+"""
+    Converts a pyplot figure to an RGB np image
+"""
+def fig_to_img(figure):
     buf = io.BytesIO()
     figure.savefig(buf, format='png')
     buf.seek(0)
-
     # Read plot as np img from buffer
     img = np.array(Image.open(buf)).astype(np.uint8)
     img = img[:, :, :3]  # remove alpha channel
-
     buf.close()
     figure.clear()
     return img
+
+
+def get_attention_fig(attention, h, w, t):
+    attention_matrix = attention[t][h][w]
+    attention_matrix = attention_matrix * 100
+    ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
+    # h and w are swapped in pyplot plots compared to numpy arrays
+    ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='white', linewidth=2))
+    figure = ax.get_figure()
+    return figure
 
 
 """
