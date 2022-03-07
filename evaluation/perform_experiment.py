@@ -4,7 +4,8 @@ import sys
 import torch
 
 sys.path.append("..")
-from model import model_concat_bgr
+from model import model_attention_addition, model_attention_concat, model_attention_f3
+
 from inference import convert_video, FixedOffsetMatcher
 import argparse
 
@@ -26,10 +27,25 @@ File structure:
         - fgr.mp4
 """
 
+def get_model(model_type):
+    if model_type == 'addition':
+        model = model_attention_addition.MattingNetwork("mobilenetv3",
+                                                             pretrained_backbone=False,
+                                                             pretrained_on_rvm=False)
+    elif model_type == 'concat':
+        model = model_attention_concat.MattingNetwork("mobilenetv3",
+                                                             pretrained_backbone=False,
+                                                             pretrained_on_rvm=False)
+    else:
+        model = model_attention_f3.MattingNetwork("mobilenetv3",
+                                                             pretrained_backbone=False,
+                                                             pretrained_on_rvm=False)
 
-def inference(experiment_dir, load_model, input_dir, clips, input_resize,
-              output_type="png_sequence", bgr_integration='attention', bgr_offset=0):
-    model = model_concat_bgr.MattingNetwork("mobilenetv3", bgr_integration=bgr_integration).eval().cuda()
+    return model
+
+def inference(experiment_dir, model_type, load_model, input_dir, clips, input_resize,
+              output_type="png_sequence", bgr_offset=0):
+    model = get_model(model_type).eval().cuda()
     model.load_state_dict(torch.load(load_model))
 
     matcher = FixedOffsetMatcher(bgr_offset)
