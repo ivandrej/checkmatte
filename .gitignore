@@ -133,3 +133,4 @@ dmypy.json
 # Torch training
 checkpoint/
 log/
+/notebooks/
