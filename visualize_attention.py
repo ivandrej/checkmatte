@@ -8,6 +8,8 @@ import torch
 from PIL import Image
 from matplotlib.patches import Rectangle
 from torchvision.utils import make_grid
+import cv2
+from torchvision.transforms import functional as F
 
 """
   /outdir
@@ -32,16 +34,15 @@ class TestVisualizer:
         T, H, W, _, _ = attention.shape
 
         for h, w in key_spatial_locations(H, W):
-            figure = get_attention_fig(attention, h, w, 0)
+            for t in range(T):
+                figure = get_attention_fig(attention, h, w, t)
 
-            frame_out_dir = os.path.join(self.outdir, f"{h}-{w}")
-            os.makedirs(frame_out_dir, exist_ok=True)
+                location_out_dir = os.path.join(self.outdir, f"{h}-{w}")
+                os.makedirs(location_out_dir, exist_ok=True)
 
-            figure.savefig(os.path.join(frame_out_dir, f"{self.frameidx}.png"))
-            figure.clear()
+                figure.savefig(os.path.join(location_out_dir, f"{self.frameidx + t}.png"))
+                figure.clear()
         self.frameidx += T
-
-
 
 """
     Plots to Tensorboard:
@@ -73,6 +74,35 @@ class TrainVisualizer:
             self.writer.add_image(f'{tag}_attention_{h},{w}',
                                   make_grid(figures.flatten(0, 1), nrow=figures.size(1)),
                                   step)
+
+class RectangleVisualizer:
+    def __init__(self, outdir):
+        self.outdir = outdir
+        self.frameidx = 0
+
+    # First frame of sequence only
+    # All pixels
+    def __call__(self, attention, person):
+        assert (attention.ndim == 5)
+        T, H, W, _, _ = attention.shape
+
+        rec_h, rec_w = 4, 10
+        rec_size_h, rec_size_w = 4, 10
+        target_frameidx = 106
+        for t in range(T):
+            if self.frameidx == target_frameidx:
+                for h in range(rec_h, rec_h + rec_size_h):
+                    for w in range(rec_w, rec_w + rec_size_w):
+                        heatmap_img = plot_attention(attention, h, w, t)
+                        # Convert CHW, [0,1] --> HWC, [0, 255]
+                        resized_person = F.resize(person[t], heatmap_img.shape[:2]).permute(1, 2, 0) * 255
+                        resized_person = resized_person.cpu().detach().numpy().astype(np.uint8)
+
+                        res = cv2.addWeighted(resized_person, 0.6, heatmap_img, 0.4, 0)
+                        frame_out_dir = os.path.join(self.outdir, f"{target_frameidx}")
+                        os.makedirs(frame_out_dir, exist_ok=True)
+                        Image.fromarray(res).save(os.path.join(frame_out_dir, f"{h}-{w}.png"))
+            self.frameidx += 1
 
 """
     DHA average over all frames of all batches.
@@ -115,11 +145,10 @@ def fig_to_img(figure):
     figure.clear()
     return img
 
-
 def get_attention_fig(attention, h, w, t):
     attention_matrix = attention[t][h][w]
     attention_matrix = attention_matrix * 100
-    ax = sns.heatmap(attention_matrix, linewidth=0.5, linecolor='green', annot=True, fmt=".1f")
+    ax = sns.heatmap(attention_matrix, linewidth=0.1, linecolor='green', annot=False, fmt=".1f")
     # h and w are swapped in pyplot plots compared to numpy arrays
     ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='white', linewidth=2))
     figure = ax.get_figure()
