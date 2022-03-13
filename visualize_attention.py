@@ -6,9 +6,9 @@ import numpy as np
 import seaborn as sns
 import torch
 from PIL import Image
+import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from torchvision.utils import make_grid
-import cv2
 from torchvision.transforms import functional as F
 
 """
@@ -49,8 +49,6 @@ class TestVisualizer:
       - 4 key locations
       - first sequence in batch
       - all frames
-      
-    Returns avg dha score over the whole batch 
 """
 class TrainVisualizer:
     def __init__(self, writer):
@@ -76,33 +74,59 @@ class TrainVisualizer:
                                   step)
 
 class RectangleVisualizer:
-    def __init__(self, outdir):
+
+    def __init__(self, outdir, target_frame_idx, rec_h, rec_w, rec_size_h, rec_size_w):
         self.outdir = outdir
         self.frameidx = 0
+        self.target_frameidx = target_frame_idx
+        self.rec_w = rec_w
+        self.rec_h = rec_h
+        self.rec_size_w = rec_size_w
+        self.rec_size_h = rec_size_h
 
     # First frame of sequence only
     # All pixels
-    def __call__(self, attention, person):
+    def __call__(self, attention, person, bgr):
         assert (attention.ndim == 5)
         T, H, W, _, _ = attention.shape
 
-        rec_h, rec_w = 4, 10
-        rec_size_h, rec_size_w = 4, 10
-        target_frameidx = 106
         for t in range(T):
-            if self.frameidx == target_frameidx:
-                for h in range(rec_h, rec_h + rec_size_h):
-                    for w in range(rec_w, rec_w + rec_size_w):
-                        heatmap_img = plot_attention(attention, h, w, t)
-                        # Convert CHW, [0,1] --> HWC, [0, 255]
-                        resized_person = F.resize(person[t], heatmap_img.shape[:2]).permute(1, 2, 0) * 255
-                        resized_person = resized_person.cpu().detach().numpy().astype(np.uint8)
+            if self.frameidx == self.target_frameidx:
+                for h in range(self.rec_h, self.rec_h + self.rec_size_h):
+                    for w in range(self.rec_w, self.rec_w + self.rec_size_w):
+                        # Attention map overlayed over bgr frame
+                        fig = plt.figure()
+                        bgr_np = tensor_to_pyplot_np(bgr[t])
+                        get_attention_over_bgr_fig(attention, bgr_np, h, w, t)
+                        # Store plot in a buffer in memory
+                        heatmap_img = fig_to_img(fig)
+                        ax = plt.gca()
+                        aspect = ax.get_aspect()
+                        extent = ax.get_xlim() + ax.get_ylim()
+                        plt.close()
+                        # fig.clear()
 
-                        res = cv2.addWeighted(resized_person, 0.6, heatmap_img, 0.4, 0)
-                        frame_out_dir = os.path.join(self.outdir, f"{target_frameidx}")
+                        # Person anchor shown on person frame
+                        fig = plt.figure()
+                        ax = plt.gca()
+                        person_np = tensor_to_pyplot_np(person[t])
+                        ax.imshow(person_np, aspect=aspect, extent=extent)
+                        ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1))
+                        person_anchor_img = fig_to_img(fig)
+                        frame_out_dir = os.path.join(self.outdir, f"{self.target_frameidx}")
+
+                        # Show person frame left and bgr frame right
+                        res = np.concatenate((person_anchor_img, heatmap_img), axis=1)
+
                         os.makedirs(frame_out_dir, exist_ok=True)
                         Image.fromarray(res).save(os.path.join(frame_out_dir, f"{h}-{w}.png"))
+                        plt.close()
             self.frameidx += 1
+
+def tensor_to_pyplot_np(x):
+    x = x.permute(1, 2, 0) * 255
+    x = x.cpu().detach().numpy().astype(np.uint8)
+    return x
 
 """
     DHA average over all frames of all batches.
@@ -142,7 +166,7 @@ def fig_to_img(figure):
     img = np.array(Image.open(buf)).astype(np.uint8)
     img = img[:, :, :3]  # remove alpha channel
     buf.close()
-    figure.clear()
+    # figure.clear()
     return img
 
 def get_attention_fig(attention, h, w, t):
@@ -153,6 +177,19 @@ def get_attention_fig(attention, h, w, t):
     ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='white', linewidth=2))
     figure = ax.get_figure()
     return figure
+
+def get_attention_over_bgr_fig(attention, bgr, h, w, t):
+    attention_matrix = attention[t][h][w]
+    attention_matrix = attention_matrix * 100
+    ax = sns.heatmap(attention_matrix, cmap="Blues", linewidth=0.1, linecolor='green',
+                     annot=False, fmt=".1f", zorder=4, alpha=0.6)
+    # h and w are swapped in pyplot plots compared to numpy arrays
+    ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1, zorder=5))
+    # plt.show()
+    ax.imshow(bgr,
+              aspect=ax.get_aspect(),
+              extent=ax.get_xlim() + ax.get_ylim(),
+              zorder=1)
 
 
 """

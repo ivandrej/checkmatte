@@ -29,6 +29,13 @@ parser.add_argument('--temporal-offset', type=int, default=0)
 parser.add_argument('--output-type', type=str, default='video', required=False)
 parser.add_argument('--resize', type=int, default=(512, 288), nargs=2)
 parser.add_argument('--epochs', '--list', nargs='+', required=True)
+
+# Params for attention rectangle
+parser.add_argument('--frameidx', type=int, required=True)
+parser.add_argument('--h', type=int, required=True)
+parser.add_argument('--w', type=int, required=True)
+parser.add_argument('--size_h', type=int, required=True)
+parser.add_argument('--size_w', type=int, required=True)
 args = parser.parse_args()
 
 if not os.path.exists(args.out_dir):
@@ -106,7 +113,8 @@ def convert_video(model,
         bgrs.append(bgr)
 
     if output_attention is not None:
-        attention_visualizer = RectangleVisualizer(output_attention)
+        attention_visualizer = RectangleVisualizer(output_attention, args.frameidx,
+                                                   args.h, args.w, args.size_h, args.size_w)
 
     # Inference
     model = model.eval()
@@ -134,7 +142,7 @@ def convert_video(model,
             bgr = bgr.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
             fgr, pha, attention, *rec = model(src, bgr, *rec, downsample_ratio)
             if output_attention is not None:
-                attention_visualizer(attention[0], src[0])
+                attention_visualizer(attention[0], src[0], bgr[0])
 
 for epoch in args.epochs:
     out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
