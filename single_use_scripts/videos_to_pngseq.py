@@ -12,10 +12,10 @@ def to_pngseq(clipname, tag):
     :param clipname: Name of video
     :param tag: 'person' or 'bgr'
     """
+    clipgroup = args.dir.split('/')[-1]
     vidpath = os.path.join(args.dir, clipname, f'{tag}.mp4')
-    outdir = os.path.join(args.outdir, clipname, tag)
+    outdir = os.path.join(args.outdir, clipgroup, clipname, tag)
     os.makedirs(outdir, exist_ok=True)
-
     os.system(f"ffmpeg -i {vidpath} {outdir}/%04d.png")
 
 for clipname in os.listdir(args.dir):
