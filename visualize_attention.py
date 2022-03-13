@@ -94,34 +94,39 @@ class RectangleVisualizer:
             if self.frameidx == self.target_frameidx:
                 for h in range(self.rec_h, self.rec_h + self.rec_size_h):
                     for w in range(self.rec_w, self.rec_w + self.rec_size_w):
-                        # Attention map overlayed over bgr frame
-                        fig = plt.figure()
-                        bgr_np = tensor_to_pyplot_np(bgr[t])
-                        get_attention_over_bgr_fig(attention, bgr_np, h, w, t)
-                        # Store plot in a buffer in memory
-                        heatmap_img = fig_to_img(fig)
-                        ax = plt.gca()
-                        aspect = ax.get_aspect()
-                        extent = ax.get_xlim() + ax.get_ylim()
-                        plt.close()
-                        # fig.clear()
+                        res = sidebysidevisualize(attention, bgr, h, person, t, w)
 
-                        # Person anchor shown on person frame
-                        fig = plt.figure()
-                        ax = plt.gca()
-                        person_np = tensor_to_pyplot_np(person[t])
-                        ax.imshow(person_np, aspect=aspect, extent=extent)
-                        ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1))
-                        person_anchor_img = fig_to_img(fig)
                         frame_out_dir = os.path.join(self.outdir, f"{self.target_frameidx}")
-
-                        # Show person frame left and bgr frame right
-                        res = np.concatenate((person_anchor_img, heatmap_img), axis=1)
-
                         os.makedirs(frame_out_dir, exist_ok=True)
                         Image.fromarray(res).save(os.path.join(frame_out_dir, f"{h}-{w}.png"))
                         plt.close()
             self.frameidx += 1
+
+
+def sidebysidevisualize(attention, bgr, h, person, t, w):
+    # Attention map overlayed over bgr frame
+    fig = plt.figure()
+    bgr_np = tensor_to_pyplot_np(bgr[t])
+    get_attention_over_bgr_fig(attention, bgr_np, h, w, t)
+    # Store plot in a buffer in memory
+    heatmap_img = fig_to_img(fig)
+    ax = plt.gca()
+    aspect = ax.get_aspect()
+    extent = ax.get_xlim() + ax.get_ylim()
+    plt.close()
+
+    # Person anchor shown on person frame
+    fig = plt.figure()
+    ax = plt.gca()
+    person_np = tensor_to_pyplot_np(person[t])
+    ax.imshow(person_np, aspect=aspect, extent=extent)
+    ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1))
+    person_anchor_img = fig_to_img(fig)
+
+    # Show person frame left and bgr frame right
+    res = np.concatenate((person_anchor_img, heatmap_img), axis=1)
+    return res
+
 
 def tensor_to_pyplot_np(x):
     x = x.permute(1, 2, 0) * 255
