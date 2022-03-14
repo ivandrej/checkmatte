@@ -104,7 +104,7 @@ from evaluation.evaluation_metrics import MetricMAD
 from model.model import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss
-from utils import tensor_memory_usage
+from utils import tensor_memory_usage, model_size
 
 
 class Trainer:
@@ -176,7 +176,8 @@ class Trainer:
             size=self.args.resolution_lr,
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
-            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr))
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr),
+            max_videomatte_clips=-1)
         # if self.args.train_hr:
         #     self.dataset_hr_train = VideoMatteDataset(
         #         videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
@@ -191,7 +192,8 @@ class Trainer:
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr))
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr),
+            max_videomatte_clips=-1)
         # Dataset of dynamic backgrounds - harder cases than most of the training samples
         self.dataset_valid_hard = VideoMatteDataset(
             videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
@@ -199,7 +201,8 @@ class Trainer:
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr))
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr),
+            max_videomatte_clips=-1)
 
         # Matting dataloaders:
         self.datasampler_lr_train = DistributedSampler(
@@ -254,6 +257,8 @@ class Trainer:
             {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
         ])
         self.scaler = GradScaler()
+
+        print(f"Model size: {model_size(self.model):.2f} MB")
         
     def init_writer(self):
         if self.rank == 0:
