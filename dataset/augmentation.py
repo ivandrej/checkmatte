@@ -64,8 +64,11 @@ class MotionAugmentation:
             params = transforms.RandomResizedCrop.get_params(bgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
             bgrs = F.resized_crop(bgrs, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
         else:  # resize such that smaller side has self.size
-            bgrs = F.resize(bgrs, self.size, interpolation=F.InterpolationMode.BILINEAR)
-            h, w = bgrs.shape[-2:]
+            # Note: We assume all bgrs and fgrs are horizontal
+            # Most of the videos in DVM have the aspect ratio 16:9, but some are slightly different
+            # We explicitly set the aspect ratio to 16:9 so they all have the same shape
+            h, w = self.size, int(self.size * 16 / 9)
+            bgrs = F.resize(bgrs, (h, w), interpolation=F.InterpolationMode.BILINEAR)
 
             # Match size of fgrs to bgrs. Most fgrs are 432 x 768 - the standard aspect ratio of 16:9. A few are
             # 405 x 768, so we have to match the size to the bgr like this so they are the same size after resizing.

@@ -104,6 +104,7 @@ from evaluation.evaluation_metrics import MetricMAD
 from model.model import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss
+from utils import tensor_memory_usage
 
 
 class Trainer:
@@ -293,6 +294,12 @@ class Trainer:
             pred_fgr, pred_pha = self.model_ddp(true_src, downsample_ratio=downsample_ratio)[:2]
             loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
 
+        if self.step == 0:
+            print("True fgr memory usage: ", tensor_memory_usage(true_fgr))
+            print("True pha memory usage: ", tensor_memory_usage(true_pha))
+            print("True bgr memory usage: ", tensor_memory_usage(true_bgr))
+            print("True src memory usage: ", tensor_memory_usage(true_src))
+
         self.scaler.scale(loss['total']).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()
@@ -317,7 +324,7 @@ class Trainer:
             self.dataiterator_mat_hr = iter(self.dataloader_hr_train)
             sample = next(self.dataiterator_mat_hr)
         return sample
-    
+
     def validate(self):
         if self.rank == 0:
             self.log(f'Validating at the start of epoch: {self.epoch}')
