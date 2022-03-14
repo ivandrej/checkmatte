@@ -31,6 +31,7 @@ from evaluation.evaluation_metrics import MetricMAD
 from model.model_attention_addition import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss, segmentation_loss, pha_loss
+from utils import tensor_memory_usage
 from visualize_attention import TrainVisualizer, calc_avg_dha
 
 
@@ -248,6 +249,10 @@ class AbstractAttentionTrainer:
 
         if self.step == 0:
             print("Training batch shape: ", true_src.shape)
+            print("True fgr memory usage: ", tensor_memory_usage(true_fgr))
+            print("True pha memory usage: ", tensor_memory_usage(true_pha))
+            print("True bgr memory usage: ", tensor_memory_usage(true_bgr))
+            print("True src memory usage: ", tensor_memory_usage(true_src))
 
         with autocast(enabled=not self.args.disable_mixed_precision):
             _, pred_pha, attention = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:3]
@@ -363,7 +368,6 @@ class AbstractAttentionTrainer:
                             randombgr_pred_phas.append(randombgr_pred_pha)
                             randombgrs.append(random_bgr)
                         i += 1
-                        break
             pred_phas = pred_phas[0]
             true_srcs = true_srcs[0]
             precaptured_bgrs = precaptured_bgrs[0]
