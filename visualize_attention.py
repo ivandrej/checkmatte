@@ -45,25 +45,30 @@ class TestVisualizer:
         self.frameidx += T
 
 """
-    Plots to Tensorboard:
+    Plots a sequence of attention to Tensorboard (not a batch of sequences):
       - 4 key locations
-      - first sequence in batch
       - all frames
 """
 class TrainVisualizer:
     def __init__(self, writer):
         self.writer = writer
 
-    def __call__(self, attention, step, tag):
-        assert (attention.ndim == 6)
-        # Only take first sequence in the batch
-        attention = attention[0]
+    """
+        attention, person, bgr: torch.Tensor
+        Assumes single batch (no batch dimension)
+        Assumes all tensors are on CPU, so they can be converted to numpy
+    """
+    def __call__(self, attention, person, bgr, step, tag):
+        assert (attention.ndim == 5)
+        assert (person.ndim == 4)
+        assert (bgr.ndim == 4)
+
         T, H, W, _, _ = attention.shape
 
         for h, w in key_spatial_locations(H, W):
             figures = []
             for t in range(T):
-                figure = plot_attention(attention, h, w, t)
+                figure = sidebysidevisualize(attention, bgr, h, person, t, w)
                 figures.append(figure)
 
             # Add batch dim, currently ignored in plot method
@@ -102,20 +107,29 @@ class RectangleVisualizer:
                         plt.close()
             self.frameidx += 1
 
-
+"""
+    Visualizes what a particular person location focuses on over the background frame
+    Plots:
+      - Left: person frame with the anchor person location
+      - Right: the background frame overlayed with the attention map
+      
+      attention, bgr, person: torch.Tensor 
+"""
 def sidebysidevisualize(attention, bgr, h, person, t, w):
-    # Attention map overlayed over bgr frame
+    assert (bgr.dim() == 4)
+    assert (person.dim() == 4)
+    #  Bgr frame overlayed with attention map
     fig = plt.figure()
     bgr_np = tensor_to_pyplot_np(bgr[t])
     get_attention_over_bgr_fig(attention, bgr_np, h, w, t)
-    # Store plot in a buffer in memory
+
     heatmap_img = fig_to_img(fig)
     ax = plt.gca()
     aspect = ax.get_aspect()
     extent = ax.get_xlim() + ax.get_ylim()
     plt.close()
 
-    # Person anchor shown on person frame
+    # Person anchor location shown on person frame
     fig = plt.figure()
     ax = plt.gca()
     person_np = tensor_to_pyplot_np(person[t])
@@ -127,7 +141,9 @@ def sidebysidevisualize(attention, bgr, h, person, t, w):
     res = np.concatenate((person_anchor_img, heatmap_img), axis=1)
     return res
 
-
+"""
+    Torch images during training are CHW [0,1]. Converts them to numpy HWC [0, 255] 
+"""
 def tensor_to_pyplot_np(x):
     x = x.permute(1, 2, 0) * 255
     x = x.cpu().detach().numpy().astype(np.uint8)
@@ -146,7 +162,6 @@ def calc_avg_dha(attention):
         for h, w in key_spatial_locations(H, W):
             for t in range(T):
                 attention_matrix = attention[b][t][h][w]
-                # print("Single DHA: ", metric_DHA(attention_matrix, h, w))
                 dha_total += metric_DHA(attention_matrix, h, w)
                 cnt += 1
 

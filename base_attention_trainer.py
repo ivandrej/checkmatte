@@ -270,7 +270,8 @@ class AbstractAttentionTrainer:
 
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
-            self.attention_visualizer(attention, self.step, 'train')
+            self.attention_visualizer(attention[0], true_src[0].detach().cpu(), precaptured_bgr[0].detach().cpu(),
+                                      self.step, 'train')
             train_avg_dha = calc_avg_dha(attention)
             self.writer.add_scalar(f'train_{tag}_attention_dha', train_avg_dha, self.step)
             self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
@@ -285,7 +286,8 @@ class AbstractAttentionTrainer:
             _, randombgr_pred_pha, attention = self.model_ddp(true_src,
                                                               random_bgr,
                                                               downsample_ratio=downsample_ratio)[:3]
-            self.log_randombgr_metrics(attention, pred_pha, randombgr_pred_pha, tag, true_pha)
+            self.log_randombgr_metrics(attention, pred_pha, randombgr_pred_pha, tag, true_pha,
+                                       true_src, random_bgr)
 
         self.model_ddp.train()
 
@@ -301,6 +303,7 @@ class AbstractAttentionTrainer:
             true_srcs = []
             precaptured_bgrs = []
             randombgr_pred_phas = []
+            randombgrs = []
             attention_to_log = None
             randombgr_attention_to_log = None
             i = 0
@@ -358,15 +361,18 @@ class AbstractAttentionTrainer:
                             true_srcs.append(true_src)
                             precaptured_bgrs.append(precaptured_bgr)
                             randombgr_pred_phas.append(randombgr_pred_pha)
+                            randombgrs.append(random_bgr)
                         i += 1
+                        break
             pred_phas = pred_phas[0]
             true_srcs = true_srcs[0]
             precaptured_bgrs = precaptured_bgrs[0]
             randombgr_pred_phas = randombgr_pred_phas[0]
+            randombgrs = randombgrs[0]
 
             if self.rank == 0:
                 self.log_valid_images(attention_to_log, precaptured_bgrs, pred_phas, randombgr_attention_to_log,
-                                      randombgr_pred_phas, true_srcs)
+                                      randombgr_pred_phas, true_srcs, randombgrs)
 
             self.log_valid_metrics(attentions_total_mad, randombgr_and_correctbgr_total_mad, randombgr_total_dha,
                                    randombgr_total_mad, total_count, total_dha, total_loss, total_mad)
@@ -414,7 +420,7 @@ class AbstractAttentionTrainer:
         self.writer.add_scalar('hard_valid_randombgr_attention_dha', randombgr_avg_dha, self.step)
 
     def log_valid_images(self, attention_to_log, precaptured_bgrs, pred_phas, randombgr_attention_to_log,
-                         randombgr_pred_phas, true_srcs):
+                         randombgr_pred_phas, true_srcs, randombgrs):
         self.writer.add_image(f'hard_valid_pred_pha',
                               make_grid(pred_phas.flatten(0, 1), nrow=pred_phas.size(1)),
                               self.step)
@@ -430,8 +436,12 @@ class AbstractAttentionTrainer:
         self.writer.add_image(f'hard_valid_pred_pha_wrongbgr',
                               make_grid(randombgr_pred_phas.flatten(0, 1), nrow=randombgr_pred_phas.size(1)),
                               self.step)
-        self.attention_visualizer(attention_to_log, self.step, 'hard_valid')
-        self.attention_visualizer(randombgr_attention_to_log, self.step, 'hard_valid_randombgr')
+        self.attention_visualizer(attention_to_log[0],
+                                  true_srcs[0].detach().cpu(), precaptured_bgrs[0].detach().cpu(),
+                                  self.step, 'hard_valid')
+        self.attention_visualizer(randombgr_attention_to_log[0],
+                                  true_srcs[0].detach().cpu(), randombgrs[0].detach().cpu(),
+                                  self.step, 'hard_valid_randombgr')
         # self.attention_visualizer(randomnoisebgr_attention_to_log, self.step, 'hard_valid_randomnoisebgr')
 
     def log_grad_norms(self):
@@ -452,7 +462,7 @@ class AbstractAttentionTrainer:
         Logs MAD metric
         Logs image predictions and attention maps 
     """
-    def log_randombgr_metrics(self, attention, pred_pha, randombgr_pred_pha, tag, true_pha):
+    def log_randombgr_metrics(self, attention, pred_pha, randombgr_pred_pha, tag, true_pha, true_src, randombgr):
         random_bgr_mad = MetricMAD()(randombgr_pred_pha, true_pha)
         self.writer.add_scalar(f'{tag}_wrongbgr_mad', random_bgr_mad, self.step)
         mad_random_and_correct_pha = MetricMAD()(randombgr_pred_pha, pred_pha)
@@ -460,7 +470,7 @@ class AbstractAttentionTrainer:
         self.writer.add_image(f'{tag}_pred_pha_wrongbgr',
                               make_grid(randombgr_pred_pha.flatten(0, 1), nrow=randombgr_pred_pha.size(1)),
                               self.step)
-        self.attention_visualizer(attention, self.step, f'{tag}_wrongbgr')
+        self.attention_visualizer(attention[0], true_src[0].detach().cpu(), randombgr[0].detach().cpu(), self.step, f'{tag}_wrongbgr')
         train_wrongbgr_avg_dha = calc_avg_dha(attention)
         self.writer.add_scalar(f'{tag}_wrongbgr_attention_dha', train_wrongbgr_avg_dha, self.step)
 
