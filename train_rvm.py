@@ -357,6 +357,7 @@ class Trainer:
             self.log(f'Validating hard at the start of epoch: {self.epoch}')
             self.model_ddp.eval()
             total_loss, total_count = 0, 0
+            total_mad = 0
             pred_phas = []
             true_srcs = []
             i = 0
@@ -376,13 +377,13 @@ class Trainer:
                         pred_fgr, pred_pha = self.model(true_src)[:2]
                         total_loss += matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)[
                                           'total'].item() * batch_size
+                        total_mad += MetricMAD()(pred_pha, true_pha) * batch_size
                         total_count += batch_size
 
                         if i % 12 == 0:  # reduces number of samples to show
                             pred_phas.append(pred_pha)
                             true_srcs.append(true_src)
                         i += 1
-            mad_error = MetricMAD()(pred_pha, true_pha)
             pred_phas = pred_phas[0]
             true_srcs = true_srcs[0]
 
@@ -394,9 +395,11 @@ class Trainer:
                                       make_grid(true_srcs.flatten(0, 1), nrow=true_srcs.size(1)),
                                       self.step)
             avg_loss = total_loss / total_count
+            avg_mad = total_mad / total_count
+
             self.log(f'Hard validation set average loss: {avg_loss}')
-            self.log(f'Hard validation set MAD: {mad_error}')
-            self.writer.add_scalar('hard_valid_mad', mad_error, self.step)
+            self.log(f'Hard validation set MAD: {avg_mad}')
+            self.writer.add_scalar('hard_valid_mad', avg_mad, self.step)
             self.model_ddp.train()
         dist.barrier()
     

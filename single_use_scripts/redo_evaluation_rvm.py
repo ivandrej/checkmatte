@@ -2,18 +2,19 @@ import os
 import sys
 
 sys.path.append('..')
-from train_attention import AttentionAdditionTrainer
+from dataset.videomatte import VideoMatteDataset, VideoMatteSpecializedNoAugmentation
+from train_rvm import Trainer
+
 
 import torch
 from torch import multiprocessing as mp
 from torch.utils.data import DataLoader
 
 from dataset.augmentation import ValidFrameSampler
-from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrValidAugmentation
 from train_config import BGR_FRAME_DATA_PATHS
 
 
-class ValidationOnlyTrainer(AttentionAdditionTrainer):
+class ValidationOnlyTrainer(Trainer):
     def __init__(self, rank, world_size):
         self.parse_args()
         self.init_distributed(rank, world_size)
@@ -28,39 +29,21 @@ class ValidationOnlyTrainer(AttentionAdditionTrainer):
         size_hr = (self.args.resolution_hr, self.args.resolution_hr)
         size_lr = (self.args.resolution_lr, self.args.resolution_lr)
 
-        self.dataset_valid = VideoMattePrecapturedBgrDataset(
-            videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
-            background_video_dir=BGR_FRAME_DATA_PATHS['DVM']['valid'],
-            size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
-            seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
-            seq_sampler=ValidFrameSampler(),
-            transform=VideoMattePrecapturedBgrValidAugmentation(
-                size_hr if self.args.train_hr else self.args.resolution_lr),
-            offset=self.args.temporal_offset)
-
         # Dataset of dynamic backgrounds - harder cases than most of the training samples
-        self.dataset_valid_hard = VideoMattePrecapturedBgrDataset(
+        self.dataset_valid_hard = VideoMatteDataset(
             videomatte_dir=BGR_FRAME_DATA_PATHS['videomatte']['valid'],
             background_video_dir=BGR_FRAME_DATA_PATHS['phone_captures']['valid'],
             size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
             seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
             seq_sampler=ValidFrameSampler(),
-            transform=VideoMattePrecapturedBgrValidAugmentation(
-                size_hr if self.args.train_hr else self.args.resolution_lr),
-            offset=self.args.temporal_offset)
+            transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr),
+            max_videomatte_clips=-1)
 
-        self.dataloader_valid = DataLoader(
-            dataset=self.dataset_valid,
-            batch_size=self.args.batch_size_per_gpu,
-            num_workers=self.args.num_workers,
-            pin_memory=True)
         self.dataloader_valid_hard = DataLoader(
             dataset=self.dataset_valid_hard,
             batch_size=self.args.batch_size_per_gpu,
             num_workers=self.args.num_workers,
             pin_memory=True)
-
-        self.random_bgr_path = BGR_FRAME_DATA_PATHS["room"]
 
     def train(self):
         checkpoint_dir = self.args.checkpoint
