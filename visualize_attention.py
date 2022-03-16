@@ -127,7 +127,7 @@ def sidebysidevisualize(attention, bgr, h, person, t, w):
     ax = plt.gca()
     aspect = ax.get_aspect()
     extent = ax.get_xlim() + ax.get_ylim()
-    plt.close()
+    plt.close(fig)
 
     # Person anchor location shown on person frame
     fig = plt.figure()
@@ -136,7 +136,7 @@ def sidebysidevisualize(attention, bgr, h, person, t, w):
     ax.imshow(person_np, aspect=aspect, extent=extent)
     ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1))
     person_anchor_img = fig_to_img(fig)
-
+    plt.close(fig)
     # Show person frame left and bgr frame right
     res = np.concatenate((person_anchor_img, heatmap_img), axis=1)
     return res
