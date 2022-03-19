@@ -1,6 +1,7 @@
 import io
 import os
 
+import cv2
 import numpy
 import numpy as np
 import seaborn as sns
@@ -78,6 +79,10 @@ class TrainVisualizer:
                                   make_grid(figures.flatten(0, 1), nrow=figures.size(1)),
                                   step)
 
+"""
+    Visualizes the attention map for all person anchor locations in 
+    a specified rectangle
+"""
 class RectangleVisualizer:
 
     def __init__(self, outdir, target_frame_idx, rec_h, rec_w, rec_size_h, rec_size_w):
@@ -106,6 +111,59 @@ class RectangleVisualizer:
                         Image.fromarray(res).save(os.path.join(frame_out_dir, f"{h}-{w}.png"))
                         plt.close()
             self.frameidx += 1
+
+"""
+    Line connecting each person location with the background location
+    with the highest activation in the attention map.
+"""
+class AllMaximumActivationsVisualizer:
+    def __init__(self, outdir, target_frame_idx):
+        self.outdir = outdir
+        self.frameidx = 0
+        self.target_frameidx = target_frame_idx
+
+    # First frame of sequence only
+    # All pixels
+    def __call__(self, attention, person, bgr):
+        assert (attention.ndim == 5)
+        T, H, W, _, _ = attention.shape
+
+        for t in range(T):
+            if self.frameidx == self.target_frameidx:
+                img = np.concatenate((tensor_to_pyplot_np(person[t]),
+                                      tensor_to_pyplot_np(bgr[t])), axis=1)
+                img = img.copy()  # some unsolved opencv issue, have to do this
+                img = cv2.resize(img, dsize=(910 * 2, 512), interpolation=cv2.INTER_CUBIC)
+
+                # src image is a scaled up version of the feature map
+                # The ratios can differ by at most one because we sometimes halve odd dimensions during downsampling
+                # in the encoder
+                assert (img.shape[0] // H - img.shape[1] // 2 // W <= 1)
+                scale_factor = img.shape[0] // H
+
+                for h in range(H // 3, H, 2):
+                    for w in range(W // 3, W // 4 * 4, 2):
+                        h_, w_ = matrix_argmax(attention[t][h][w])
+                        cv2.line(img,
+                                 (to_imgcoord(w, scale_factor), to_imgcoord(h, scale_factor)),
+                                 (img.shape[1] // 2 + to_imgcoord(w_, scale_factor), to_imgcoord(h_, scale_factor)),
+                                 np.random.random(size=3) * 256,
+                                 thickness=2)
+                os.makedirs(self.outdir, exist_ok=True)
+                img = Image.fromarray(img)
+                img.save(os.path.join(self.outdir,  f"{self.target_frameidx}.png"))
+                plt.close()
+            self.frameidx += 1
+
+"""
+    For a coordinate of a feature map spatial location (h or w), there exists a corresponding
+    rectangle patch in the original image.
+    Returns the coordinate (h or w) of the centre of this rectangle 
+"""
+def to_imgcoord(c, scale_factor):
+    # c * scale_factor is the upper corner of each rectangle
+    # Adding scale_factor // 2 brings us to the center of the rectangle
+    return c * scale_factor + scale_factor // 2
 
 """
     Visualizes what a particular person location focuses on over the background frame
