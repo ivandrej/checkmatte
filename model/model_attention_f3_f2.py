@@ -32,8 +32,11 @@ class MattingNetwork(nn.Module):
             self.aspp = LRASPP(960, 128)
             # self.aspp_bgr = LRASPP(960, 128)
 
+            self.spatial_attention = {
+                'f2': SpatialAttention(24, 24, attention_visualizer),
+                'f3': SpatialAttention(40, 40, attention_visualizer)
+            }
             # TODO: Add variables for number of channels
-            self.spatial_attention = SpatialAttention(40, 40, attention_visualizer)
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
@@ -70,15 +73,19 @@ class MattingNetwork(nn.Module):
         else:
             src_sm = src
             bgr_sm = bgr
-
+        print("Here")
         f1, f2, f3, f4 = self.backbone(src_sm)
         f4 = self.aspp(f4)
         f1_bgr, f2_bgr, f3_bgr, _ = self.backbone_bgr(bgr_sm)
 
-        bgr_guidance_f3, attention = self.spatial_attention(f3, f3_bgr)
+        attention = {}
+        bgr_guidance_f3, attention['f3'] = self.spatial_attention['f3'](f3, f3_bgr)
         f3_combined = bgr_guidance_f3 + f3
 
-        hid, *rec = self.decoder(src_sm, f1, f2, f3_combined, f4, r1, r2, r3, r4)
+        bgr_guidance_f2, attention['f2'] = self.spatial_attention['f2'](f2, f2_bgr)
+        f2_combined = bgr_guidance_f2 + f2
+
+        hid, *rec = self.decoder(src_sm, f1, f2_combined, f3_combined, f4, r1, r2, r3, r4)
 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)
@@ -87,7 +94,7 @@ class MattingNetwork(nn.Module):
             fgr = fgr_residual + src
             fgr = fgr.clamp(0., 1.)
             pha = pha.clamp(0., 1.)
-            return [fgr, pha, attention, *rec]
+            return [fgr, pha, attention['f3'], *rec]
         else:
             seg = self.project_seg(hid)
             return [seg, *rec]
@@ -110,5 +117,5 @@ class MattingNetwork(nn.Module):
         return self.backbone.features[6].block[0][0].weight.grad
 
     def attention_module(self):
-        return self.spatial_attention
+        return self.spatial_attention['f3']
 
