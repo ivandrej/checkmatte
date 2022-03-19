@@ -456,10 +456,10 @@ class AbstractAttentionTrainer:
             torch.flatten(self.model_ddp.module.backbone_grads()))
         self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
         attention_key_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))
+            torch.flatten(self.model_ddp.module.attention_module().key_conv.weight.grad))
         self.writer.add_scalar(f'attention_key_grad_norm', attention_key_grad_norm, self.step)
         attention_query_grad_norm = torch.linalg.vector_norm(
-            torch.flatten(self.model_ddp.module.spatial_attention.query_conv.weight.grad))
+            torch.flatten(self.model_ddp.module.attention_module().query_conv.weight.grad))
         self.writer.add_scalar(f'attention_query_grad_norm', attention_query_grad_norm, self.step)
 
     """
