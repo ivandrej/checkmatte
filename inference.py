@@ -11,7 +11,7 @@ from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, Image
 
 
 # TODO: Move to separate class
-from visualize_attention import TestVisualizer
+from visualization.visualize_attention import TestVisualizer
 
 
 class FixedOffsetMatcher:

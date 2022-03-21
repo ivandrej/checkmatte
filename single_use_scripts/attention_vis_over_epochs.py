@@ -5,17 +5,15 @@ import os
 import sys
 
 import torch
-import seaborn as sns
-from matplotlib.patches import Rectangle
 
 sys.path.append('..')
-from model import model, model_concat_bgr, model_attention_addition, model_attention_concat
+from model import model, model_attention_addition, model_attention_concat
 
 from inference_write_single_frame import convert_video, FixedOffsetMatcher
 
 import argparse
 
-import visualize_attention
+from visualization import visualize_attention
 
 
 def get_spatial_locations(H, W):

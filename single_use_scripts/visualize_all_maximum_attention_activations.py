@@ -9,14 +9,13 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from inference_utils import ImageSequenceReader
-from model import model, model_concat_bgr, model_attention_addition, model_attention_concat
 
 from inference import FixedOffsetMatcher, auto_downsample_ratio
 
 import argparse
 
 from evaluation.perform_experiment import get_model
-from visualize_attention import TestVisualizer, RectangleVisualizer, AllMaximumActivationsVisualizer
+from visualization.visualize_attention_all_maximum_activations import AllMaximumActivationsVisualizer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)

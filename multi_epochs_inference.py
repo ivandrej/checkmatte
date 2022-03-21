@@ -2,18 +2,14 @@
 
 """
 import os
-import sys
 
 import torch
-
-from model import model, model_concat_bgr, model_attention_addition, model_attention_concat
 
 from inference import convert_video, FixedOffsetMatcher
 
 import argparse
 
 from evaluation.perform_experiment import get_model
-from visualize_attention import TestVisualizer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)

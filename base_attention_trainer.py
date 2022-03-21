@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from PIL import Image
 from torch import distributed as dist
-from torch import multiprocessing as mp
 from torch import nn
 from torch.cuda.amp import autocast, GradScaler
 from torch.nn import functional as F
@@ -24,15 +23,13 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
-from dataset.precaptured_bgr_augmentation import PrecapturedBgrAndPersonSameAugmentation
 from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
 from evaluation.evaluation_metrics import MetricMAD
-from model.model_attention_addition import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
-from train_loss import matting_loss, segmentation_loss, pha_loss
+from train_loss import pha_loss
 from utils import tensor_memory_usage
-from visualize_attention import TrainVisualizer, calc_avg_dha
+from visualization.visualize_attention import TrainVisualizer, calc_avg_dha
 
 
 class AbstractAttentionTrainer:
