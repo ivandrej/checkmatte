@@ -73,7 +73,6 @@ class MattingNetwork(nn.Module):
         else:
             src_sm = src
             bgr_sm = bgr
-        print("Here")
         f1, f2, f3, f4 = self.backbone(src_sm)
         f4 = self.aspp(f4)
         f1_bgr, f2_bgr, f3_bgr, _ = self.backbone_bgr(bgr_sm)
