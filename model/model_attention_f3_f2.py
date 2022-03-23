@@ -19,8 +19,7 @@ class MattingNetwork(nn.Module):
                  variant: str = 'mobilenetv3',
                  refiner: str = 'deep_guided_filter',
                  pretrained_on_rvm=True,
-                 pretrained_backbone: bool = False,
-                 attention_visualizer=None):
+                 pretrained_backbone: bool = False):
         super().__init__()
         assert variant in ['mobilenetv3', 'resnet50']
         assert refiner in ['fast_guided_filter', 'deep_guided_filter']
@@ -33,8 +32,8 @@ class MattingNetwork(nn.Module):
             # self.aspp_bgr = LRASPP(960, 128)
 
             self.spatial_attention = {
-                'f2': SpatialAttention(24, 24, attention_visualizer),
-                'f3': SpatialAttention(40, 40, attention_visualizer)
+                'f2': SpatialAttention(24, 24),
+                'f3': SpatialAttention(40, 40)
             }
             # TODO: Add variables for number of channels
 
