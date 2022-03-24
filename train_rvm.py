@@ -123,6 +123,7 @@ class Trainer:
         parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'resnet50'])
         # Matting dataset
         parser.add_argument('--dataset', type=str, required=True, choices=['videomatte', 'imagematte'])
+        parser.add_argument('--videomatte-clips', type=int, default=-1)
         # Learning rate
         parser.add_argument('--learning-rate-backbone', type=float, required=True)
         parser.add_argument('--learning-rate-aspp', type=float, required=True)
@@ -177,7 +178,7 @@ class Trainer:
             seq_length=self.args.seq_length_lr,
             seq_sampler=TrainFrameSampler(),
             transform=VideoMatteSpecializedNoAugmentation(self.args.resolution_lr),
-            max_videomatte_clips=-1)
+            max_videomatte_clips=self.args.videomatte_clips)
         # if self.args.train_hr:
         #     self.dataset_hr_train = VideoMatteDataset(
         #         videomatte_dir=RVM_DATA_PATHS['videomatte']['train'],
@@ -313,6 +314,9 @@ class Trainer:
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
                 self.writer.add_scalar(f'train_{tag}_{loss_name}', loss_value, self.step)
+
+            train_mad = MetricMAD()(pred_pha, true_pha)
+            self.writer.add_scalar(f'train_{tag}_pha_mad', train_mad, self.step)
             
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
             self.writer.add_image(f'train_{tag}_pred_fgr', make_grid(pred_fgr.flatten(0, 1), nrow=pred_fgr.size(1)), self.step)
