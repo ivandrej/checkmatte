@@ -11,7 +11,8 @@ COLORS = [
     (225, 0, 0),  # red
     (0, 128, 0),  # green
     (255, 153, 255),  # pink
-    (0, 0, 0),  # black
+    # (0, 0, 0),  # black
+    (255, 255, 255),  # white
     (255, 255, 0)  # yellow
 ]
 
@@ -47,15 +48,18 @@ class AllMaximumActivationsVisualizer:
 
                 # Plot all lines in a rectangle
                 # (h1, w1) - top left corner, (h2, w2) - bottom right
-
-                w1, w2 = 20, 30
-                h1, h2 = 5, 30
-                w_step, h_step = 3, 4
+                print("H, W:", H, W)
+                w1_perc, w2_perc = 0.35, 0.5
+                h1_perc, h2_perc = 0.3, 0.45
+                w1, w2, w_step = int(W * w1_perc), int(W * w2_perc), 1
+                h1, h2, h_step = int(H * h1_perc), int(H * h2_perc), 1
+                print(w1, w2)
                 for w in range(w1, w2, w_step):
                     # color = np.random.random(size=3) * 256
                     color = colors[w % len(colors)]
                     for h in range(h1, h2, h_step):
                         h_, w_ = matrix_argmax(attention[t][h][w])
+                        # print(f"{h}, {w} --> {h_}, {w_}")
                         cv2.line(img,
                                  (to_imgcoord(w, scale_factor), to_imgcoord(h, scale_factor)),
                                  (img.shape[1] // 2 + to_imgcoord(w_, scale_factor), to_imgcoord(h_, scale_factor)),
@@ -63,7 +67,9 @@ class AllMaximumActivationsVisualizer:
                                  thickness=2)
                 os.makedirs(self.outdir, exist_ok=True)
                 img = Image.fromarray(img)
-                img.save(os.path.join(self.outdir,  f"{self.target_frameidx}-[{h1}, {w1}][{h2}, {w2}].png"))
+                imgname = f"{self.target_frameidx}-[{w1_perc}, {w2_perc}][{h1_perc}, {h2_perc}].png"
+                print(f"Saving to {imgname}")
+                img.save(os.path.join(self.outdir,  imgname))
                 plt.close()
             self.frameidx += 1
 
