@@ -34,6 +34,7 @@ from visualization.visualize_attention import TrainVisualizer, calc_avg_dha
 
 class AbstractAttentionTrainer:
     def __init__(self, rank, world_size):
+        torch.autograd.set_detect_anomaly(True)
         self.parse_args()
         self.init_distributed(rank, world_size)
         self.init_datasets()
