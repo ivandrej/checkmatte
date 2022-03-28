@@ -61,7 +61,8 @@ class MattingNetwork(nn.Module):
                 r3: Optional[Tensor] = None,
                 r4: Optional[Tensor] = None,
                 downsample_ratio: float = 1,
-                segmentation_pass: bool = False):
+                segmentation_pass: bool = False,
+                return_intermediate=False):
 
         if downsample_ratio != 1:
             src_sm = self._interpolate(src, scale_factor=downsample_ratio)
@@ -74,7 +75,7 @@ class MattingNetwork(nn.Module):
         f4 = self.aspp(f4)
         f1_bgr, f2_bgr, f3_bgr, _ = self.backbone_bgr(bgr_sm)
 
-        bgr_guidance_f3, attention = self.spatial_attention(f3, f3_bgr)
+        bgr_guidance_f3, attention = self.spatial_attention(f3, f3_bgr, return_intermediate)
         f3_combined = bgr_guidance_f3 + f3
 
         hid, *rec = self.decoder(src_sm, f1, f2, f3_combined, f4, r1, r2, r3, r4)

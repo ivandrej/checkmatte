@@ -253,7 +253,10 @@ class AbstractAttentionTrainer:
             print("True src memory usage: ", tensor_memory_usage(true_src))
 
         with autocast(enabled=not self.args.disable_mixed_precision):
-            _, pred_pha, attention = self.model_ddp(true_src, precaptured_bgr, downsample_ratio=downsample_ratio)[:3]
+            _, pred_pha, attention_intermediate = self.model_ddp(true_src, precaptured_bgr,
+                                                                 downsample_ratio=downsample_ratio,
+                                                                 return_intermediate=True)[:3]
+            attention = attention_intermediate['attention']
             loss = pha_loss(pred_pha, true_pha)
 
         self.scaler.scale(loss['total']).backward()
@@ -275,20 +278,27 @@ class AbstractAttentionTrainer:
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
             self.attention_visualizer(attention[0], true_src[0].detach().cpu(), precaptured_bgr[0].detach().cpu(),
                                       self.step, 'train')
+            # Plot min and max for energy to ensure no overflow or underflow
+            self.writer.add_scalar(f'train_{tag}_energy_min', np.min(attention_intermediate['energy']), self.step)
+            self.writer.add_scalar(f'train_{tag}_energy_max', np.max(attention_intermediate['energy']), self.step)
+
             train_avg_dha = calc_avg_dha(attention)
             self.writer.add_scalar(f'train_{tag}_attention_dha', train_avg_dha, self.step)
             self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
 
     def test_on_random_bgr(self, true_src, true_pha, pred_pha, downsample_ratio, tag):
-        random_bgr = self.read_random_bgr(true_src.shape).unsqueeze(0)
-        random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
-        random_bgr = random_bgr.to(self.rank, non_blocking=True)
-
         self.model_ddp.eval()
         with torch.no_grad():
-            _, randombgr_pred_pha, attention = self.model_ddp(true_src,
+            random_bgr = self.read_random_bgr(true_src.shape).unsqueeze(0)
+            random_bgr = random_bgr.repeat(true_src.shape[0], 1, 1, 1, 1)
+            random_bgr = random_bgr.to(self.rank, non_blocking=True)
+
+            _, randombgr_pred_pha, attention_intermediate = self.model_ddp(true_src,
                                                               random_bgr,
-                                                              downsample_ratio=downsample_ratio)[:3]
+                                                              downsample_ratio=downsample_ratio,
+                                                              return_intermediate=True)[:3]
+            attention = attention_intermediate['attention']
+
             self.log_randombgr_metrics(attention, pred_pha, randombgr_pred_pha, tag, true_pha,
                                        true_src, random_bgr)
 
@@ -337,12 +347,18 @@ class AbstractAttentionTrainer:
                             print("Validation hard batch shape: ", true_src.shape)
 
                         batch_size = true_src.size(0)
-                        _, pred_pha, attention = self.model(true_src, precaptured_bgr)[:3]
+                        _, pred_pha, attention_intermediate = self.model(true_src, precaptured_bgr,
+                                                                         return_intermediate=True)[:3]
+                        attention = attention_intermediate['attention']
+
                         total_loss += pha_loss(pred_pha, true_pha)['total'].item() * batch_size
                         total_mad += MetricMAD()(pred_pha, true_pha) * batch_size
                         total_count += batch_size
 
-                        _, randombgr_pred_pha, randombgr_attention = self.model(true_src, random_bgr)[:3]
+                        _, randombgr_pred_pha, attention_intermediate = self.model(true_src,
+                                                                                   random_bgr,
+                                                                                   return_intermediate=True)[:3]
+                        randombgr_attention = attention_intermediate['attention']
                         randombgr_total_mad += MetricMAD()(randombgr_pred_pha, true_pha) * batch_size
                         randombgr_and_correctbgr_total_mad += MetricMAD()(randombgr_pred_pha, pred_pha) * batch_size
 

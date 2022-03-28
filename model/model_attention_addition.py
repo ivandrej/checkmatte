@@ -65,7 +65,8 @@ class MattingNetwork(nn.Module):
                 r3: Optional[Tensor] = None,
                 r4: Optional[Tensor] = None,
                 downsample_ratio: float = 1,
-                segmentation_pass: bool = False):
+                segmentation_pass: bool = False,
+                return_intermediate=False):
 
         if downsample_ratio != 1:
             src_sm = self._interpolate(src, scale_factor=downsample_ratio)
@@ -79,7 +80,7 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
-        bgr_guidance, attention = self.spatial_attention(f4, f4_bgr)
+        bgr_guidance, attention = self.spatial_attention(f4, f4_bgr, return_intermediate)
         f4_combined = bgr_guidance + f4
 
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
@@ -146,21 +147,32 @@ class SpatialAttention(nn.Module):
         out = out.permute(0, 2, 1)  # B x C x N
         out = out.unflatten(-1, (H, W))  # B x C x H x W
 
-        return out, attention
+        intermediate = {
+            'attention': attention,
+            'energy': energy
+        }
+        return out, intermediate
 
-    def forward_time_series(self, p, b):
+    """
+        If return_intermediate = True, returns attention and energy as a dict
+        If return_intermediate = False, returns empty dict
+    """
+    def forward_time_series(self, p, b, return_intermediate):
         assert (p.shape == b.shape)
         B, T, _, H, W = p.shape
-        features, attention = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
+        features, intermediate = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
         features = features.unflatten(0, (B, T))
-        # attention = attention.unflatten(0, (B, T))
-        attention = attention.detach().cpu().view(B, T, H, W, H, W).numpy()
-        return features, attention
+        if return_intermediate:
+            intermediate['attention'] = intermediate['attention'].detach().cpu().view(B, T, H, W, H, W).numpy()
+            intermediate['energy'] = intermediate['energy'].detach().cpu().view(B, T, H, W, H, W).numpy()
+            return features, intermediate
+        else:
+            return features, {}
 
-    def forward(self, p, b):
+    def forward(self, p, b, return_intermediate):
         assert(p.shape == b.shape)
         if p.ndim == 5:
-            return self.forward_time_series(p, b)
+            return self.forward_time_series(p, b, return_intermediate)
         else:
             return self.forward_single_frame(p, b)
 
