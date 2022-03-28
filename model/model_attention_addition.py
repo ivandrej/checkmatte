@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 from torch import nn
+from torch.cuda.amp import autocast
 from torch.nn import functional as F
 from typing import Optional, List
 
@@ -130,12 +131,15 @@ class SpatialAttention(nn.Module):
         assert(p.shape == b.shape)
         H, W = p.shape[-2:]
         # query = person frames, key = background frames, value = background frames
-        query = self.query_conv(p).flatten(2, 3)  # B x C x N
+        query = self.query_conv(p).flatten(2, 3).to(dtype=torch.float32)  # B x C x N
         query = query.permute(0, 2, 1)  # B x N x C
-        key = self.key_conv(b).flatten(2, 3)  # B x C x N
+        key = self.key_conv(b).flatten(2, 3).to(dtype=torch.float32)  # B x C x N
 
-        energy = torch.bmm(query, key)  # B x N x N
-        attention = self.softmax(energy)  # B x N x N
+        # Disabling autocast makes sure the operations are performed with float32 precision.
+        # The values of energy will overflow float16
+        with autocast(enabled=False):
+            energy = torch.bmm(query, key)  # B x N x N
+            attention = self.softmax(energy)  # B x N x N
 
         value = b.flatten(2, 3).permute(0, 2, 1)  # B x C x N --> B x N x C
         out = torch.bmm(attention, value)  # B x N x C
@@ -150,7 +154,7 @@ class SpatialAttention(nn.Module):
         features, attention = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
         features = features.unflatten(0, (B, T))
         # attention = attention.unflatten(0, (B, T))
-        attention = attention.view(B, T, H, W, H, W).detach().cpu().numpy()
+        attention = attention.detach().cpu().view(B, T, H, W, H, W).numpy()
         return features, attention
 
     def forward(self, p, b):
