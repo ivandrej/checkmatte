@@ -9,6 +9,10 @@ from torch.nn import functional as F
 
 import sys
 sys.path.append('..')
+
+from evaluation.evaluation_metrics import MetricMAD
+from visualization.visualize_attention import calc_avg_dha
+
 from model.decoder import Projection, RecurrentDecoder
 from model.deep_guided_filter import DeepGuidedFilterRefiner
 from model.fast_guided_filter import FastGuidedFilterRefiner
@@ -21,6 +25,20 @@ from train_loss import pha_loss
 
 
 class DebugNanGradsTrainer(AttentionAdditionTrainer):
+    def init_network(self):
+        self.model = MattingNetwork(self.args.model_variant,
+                                    pretrained_backbone=True,
+                                    pretrained_on_rvm=self.args.pretrained_on_rvm).to(
+            self.rank)
+
+        self.param_lrs = [{'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
+                          {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
+                          {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
+                          {'params': self.model.spatial_attention.parameters(),
+                           'lr': self.args.learning_rate_backbone},
+                          {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+                          {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp}]
+
     def train_mat(self, true_fgr, true_pha, true_bgr, precaptured_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
@@ -35,8 +53,27 @@ class DebugNanGradsTrainer(AttentionAdditionTrainer):
 
         try:
             self.scaler.scale(loss['total']).backward()
+
+            for name, param in self.model_ddp.module.backbone_bgr.named_parameters():
+                if param.requires_grad:
+                    grad_norm = torch.linalg.vector_norm(torch.flatten(param.grad.detach()))
+                    weight_norm = torch.linalg.vector_norm(torch.flatten(param.detach()))
+                    print(f"{name} grad norm: {grad_norm}")
+                    print(f"{name} weight norm: {weight_norm}")
         except Exception as e:
             self.save()  # Save model exactly when it fails
+            for name, param in self.model_ddp.module.backbone_bgr.named_parameters():
+                if param.requires_grad:
+                    grad_norm = torch.linalg.vector_norm(torch.flatten(param.grad.detach()))
+                    weight_norm = torch.linalg.vector_norm(torch.flatten(param.detach()))
+                    print(f"{name} grad norm: {grad_norm}")
+                    print(f"{name} weight norm: {weight_norm}")
+            # self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
+            # self.attention_visualizer(attention[0], true_src[0].detach().cpu(), precaptured_bgr[0].detach().cpu(),
+            #                           self.step, 'train')
+            # train_avg_dha = calc_avg_dha(attention)
+            # self.writer.add_scalar(f'train_{tag}_attention_dha', train_avg_dha, self.step)
+            # self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
             raise e
 
         self.log_grad_norms()
@@ -45,22 +82,20 @@ class DebugNanGradsTrainer(AttentionAdditionTrainer):
         self.scaler.update()
         self.optimizer.zero_grad()
 
-
-
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
             for loss_name, loss_value in loss.items():
                 self.writer.add_scalar(f'train_{tag}_{loss_name}', loss_value, self.step)
 
-            # train_mad = MetricMAD()(pred_pha, true_pha)
-            # self.writer.add_scalar(f'train_{tag}_pha_mad', train_mad, self.step)
+            train_mad = MetricMAD()(pred_pha, true_pha)
+            self.writer.add_scalar(f'train_{tag}_pha_mad', train_mad, self.step)
 
-        # if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
-        #     self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
-        #     self.attention_visualizer(attention[0], true_src[0].detach().cpu(), precaptured_bgr[0].detach().cpu(),
-        #                               self.step, 'train')
-        #     train_avg_dha = calc_avg_dha(attention)
-        #     self.writer.add_scalar(f'train_{tag}_attention_dha', train_avg_dha, self.step)
-        #     self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
+        if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
+            self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
+            # self.attention_visualizer(attention[0], true_src[0].detach().cpu(), precaptured_bgr[0].detach().cpu(),
+            #                           self.step, 'train')
+            # train_avg_dha = calc_avg_dha(attention)
+            # self.writer.add_scalar(f'train_{tag}_attention_dha', train_avg_dha, self.step)
+            # self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
 
 
 if __name__ == '__main__':
@@ -129,7 +164,17 @@ class MattingNetwork(nn.Module):
             bgr_sm = bgr
 
         f1, f2, f3, f4 = self.backbone(src_sm)
+        # print("F1 range: ", torch.min(f1), torch.max(f1))
+        # print("F2 range: ", torch.min(f2), torch.max(f2))
+        # print("F3 range: ", torch.min(f3), torch.max(f3))
+        # print("F4 range: ", torch.min(f4), torch.max(f4))
+
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
+
+        # print("F1 bgr range: ", torch.min(f1_bgr), torch.max(f1_bgr))
+        # print("F2 bgr range: ", torch.min(f2_bgr), torch.max(f2_bgr))
+        # print("F3 bgr range: ", torch.min(f3_bgr), torch.max(f3_bgr))
+        # print("F4 bgr range: ", torch.min(f4_bgr), torch.max(f4_bgr))
 
         bgr_guidance, attention = self.spatial_attention(f4, f4_bgr)
         f4_combined = bgr_guidance + f4
@@ -178,15 +223,18 @@ class SpatialAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
     def forward_single_frame(self, p, b):
-        assert(p.shape == b.shape)
+        assert (p.shape == b.shape)
         H, W = p.shape[-2:]
         # query = person frames, key = background frames, value = background frames
-        query = self.query_conv(p).flatten(2, 3)  # B x C x N
-        query = query.permute(0, 2, 1)  # B x N x C
-        key = self.key_conv(b).flatten(2, 3)  # B x C x N
 
-        energy = torch.bmm(query, key)  # B x N x N
-        attention = self.softmax(energy)  # B x N x N
+        query = self.query_conv(p).flatten(2, 3).to(dtype=torch.float32)  # B x C x N
+        query = query.permute(0, 2, 1)  # B x N x C
+        key = self.key_conv(b).flatten(2, 3).to(dtype=torch.float32)  # B x C x N
+
+        with autocast(enabled=False):
+
+            energy = torch.bmm(query, key)  # B x N x N
+            attention = self.softmax(energy)  # B x N x N
 
         value = b.flatten(2, 3).permute(0, 2, 1)  # B x C x N --> B x N x C
         out = torch.bmm(attention, value)  # B x N x C
@@ -205,7 +253,7 @@ class SpatialAttention(nn.Module):
         return features, attention
 
     def forward(self, p, b):
-        assert(p.shape == b.shape)
+        assert (p.shape == b.shape)
         if p.ndim == 5:
             return self.forward_time_series(p, b)
         else:
