@@ -34,8 +34,9 @@ from visualization.visualize_attention import TrainVisualizer, calc_avg_dha
 
 class AbstractAttentionTrainer:
     def __init__(self, rank, world_size):
-        torch.autograd.set_detect_anomaly(True)
         self.parse_args()
+        if self.args.enable_anomaly_detection:
+            torch.autograd.set_detect_anomaly(True)
         self.init_distributed(rank, world_size)
         self.init_datasets()
         self.init_model()
@@ -47,21 +48,24 @@ class AbstractAttentionTrainer:
         parser = argparse.ArgumentParser()
         # Model
         parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'resnet50'])
+
         # Matting dataset
         parser.add_argument('--dataset', type=str, required=True, choices=['videomatte', 'imagematte'])
         parser.add_argument('--videomatte-clips', type=int, required=True)
+
         # Learning rate
         parser.add_argument('--learning-rate-backbone', type=float, required=True)
         parser.add_argument('--learning-rate-aspp', type=float, required=True)
         parser.add_argument('--learning-rate-decoder', type=float, required=True)
         parser.add_argument('--learning-rate-refiner', type=float, required=True)
+
         # Training setting
         parser.add_argument('--train-hr', action='store_true')
         parser.add_argument('--pretrained_on_rvm', action='store_true')
         parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
         parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
         parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
-        # what kind of transformations to apply to bgr and person frames. Default is no transformations
+        # transformations for the bgr and person frames. Default is no transformations
         parser.add_argument('--transformations', type=str, choices=['none', 'person_only', 'same_person_bgr'],
                             default='none')
         parser.add_argument('--resolution-lr', type=int, default=512)
@@ -73,21 +77,28 @@ class AbstractAttentionTrainer:
         parser.add_argument('--num-workers', type=int, default=8)
         parser.add_argument('--epoch-start', type=int, default=0)
         parser.add_argument('--epoch-end', type=int, default=16)
+
         # Tensorboard logging
         parser.add_argument('--log-dir', type=str, required=True)
         parser.add_argument('--log-train-loss-interval', type=int, default=20)
         parser.add_argument('--log-train-images-interval', type=int, default=500)
+
         # Checkpoint loading and saving
         parser.add_argument('--checkpoint', type=str)
         parser.add_argument('--checkpoint-dir', type=str, required=True)
         parser.add_argument('--checkpoint-save-interval', type=int, default=500)
+
         # Distributed
         parser.add_argument('--distributed-addr', type=str, default='localhost')
         parser.add_argument('--distributed-port', type=str, default='12355')
+
         # Debugging
         parser.add_argument('--disable-progress-bar', action='store_true')
         parser.add_argument('--disable-validation', action='store_true')
         parser.add_argument('--disable-mixed-precision', action='store_true')
+        # throws an error in case of gradient Nans
+        parser.add_argument('--enable-anomaly-detection', action='store_true')
+
         return parser
 
     def parse_args(self):
