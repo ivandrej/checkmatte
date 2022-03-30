@@ -252,6 +252,8 @@ class AbstractAttentionTrainer:
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
         true_bgr = true_bgr.to(self.rank, non_blocking=True)
+        precaptured_bgr = precaptured_bgr.to(self.rank, non_blocking=True)
+
         # Uncomment for random cropping of composited images
         # true_fgr, true_pha, true_bgr = self.random_crop(true_fgr, true_pha, true_bgr)
         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
