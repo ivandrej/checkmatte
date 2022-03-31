@@ -8,20 +8,20 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         super().__init__(
             inverted_residual_setting=[
                 InvertedResidualConfig( 16, 3,  16,  16, False, "RE", 1, 1, 1),
-                InvertedResidualConfig( 16, 3,  64,  24, False, "RE", 2, 1, 1),  # C1
+                InvertedResidualConfig( 16, 3,  64,  24, False, "RE", 2, 1, 1),
                 InvertedResidualConfig( 24, 3,  72,  24, False, "RE", 1, 1, 1),
-                InvertedResidualConfig( 24, 5,  72,  40,  True, "RE", 2, 1, 1),  # C2
+                InvertedResidualConfig( 24, 5,  72,  40,  True, "RE", 2, 1, 1),
                 InvertedResidualConfig( 40, 5, 120,  40,  True, "RE", 1, 1, 1),
                 InvertedResidualConfig( 40, 5, 120,  40,  True, "RE", 1, 1, 1),
-                InvertedResidualConfig( 40, 3, 240,  80, False, "HS", 2, 1, 1),  # C3
+                InvertedResidualConfig( 40, 3, 240,  80, False, "HS", 2, 1, 1),
                 InvertedResidualConfig( 80, 3, 200,  80, False, "HS", 1, 1, 1),
                 InvertedResidualConfig( 80, 3, 184,  80, False, "HS", 1, 1, 1),
                 InvertedResidualConfig( 80, 3, 184,  80, False, "HS", 1, 1, 1),
                 InvertedResidualConfig( 80, 3, 480, 112,  True, "HS", 1, 1, 1),
                 InvertedResidualConfig(112, 3, 672, 112,  True, "HS", 1, 1, 1),
-                InvertedResidualConfig(112, 5, 672, 160,  True, "HS", 2, 2, 1),  # C4
-                InvertedResidualConfig(160, 5, 960, 160,  True, "HS", 1, 2, 1),
-                InvertedResidualConfig(160, 5, 960, 160,  True, "HS", 1, 2, 1),
+                InvertedResidualConfig(112, 5, 672, 160,  True, "HS", 1, 1, 1),
+                InvertedResidualConfig(160, 5, 960, 160,  True, "HS", 1, 1, 1),
+                InvertedResidualConfig(160, 5, 960, 160,  True, "HS", 1, 1, 1),
             ],
             last_channel=1280
         )
@@ -35,7 +35,7 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         
     def forward_single_frame(self, x):
         x = normalize(x, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        
+
         x = self.features[0](x)
         x = self.features[1](x)
         f1 = x
