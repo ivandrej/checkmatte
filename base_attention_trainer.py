@@ -218,7 +218,7 @@ class AbstractAttentionTrainer:
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
 
         self.optimizer = Adam(self.param_lrs)
-        self.scaler = GradScaler()
+        # self.scaler = GradScaler()
 
     def init_writer(self):
         if self.rank == 0:
@@ -272,12 +272,12 @@ class AbstractAttentionTrainer:
             attention = attention_intermediate['attention']
             loss = pha_loss(pred_pha, true_pha)
 
-        self.scaler.scale(loss['total']).backward()
+        loss['total'].backward()
 
-        self.log_grad_norms()
+        if self.step % 50 == 0:
+            self.log_grad_norms()
 
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
+        self.optimizer.step()
         self.optimizer.zero_grad()
 
         if self.rank == 0 and self.step % self.args.log_train_loss_interval == 0:
