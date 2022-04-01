@@ -218,6 +218,7 @@ class AbstractAttentionTrainer:
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
 
         self.optimizer = Adam(self.param_lrs)
+        # self.optimizer = SGD(self.model.parameters(), lr=0.0001)
         # self.scaler = GradScaler()
 
     def init_writer(self):
@@ -259,6 +260,7 @@ class AbstractAttentionTrainer:
         true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
 
         if self.step == 0:
+            print("Optimizer type: ", type(self.optimizer))
             print("Training batch shape: ", true_src.shape)
             print("True fgr memory usage: ", tensor_memory_usage(true_fgr))
             print("True pha memory usage: ", tensor_memory_usage(true_pha))
@@ -273,6 +275,9 @@ class AbstractAttentionTrainer:
             loss = pha_loss(pred_pha, true_pha)
 
         loss['total'].backward()
+
+        max_norm = 50000
+        nn.utils.clip_grad_norm_(self.model.parameters(), max_norm)
 
         if self.step % 50 == 0:
             self.log_grad_norms()
