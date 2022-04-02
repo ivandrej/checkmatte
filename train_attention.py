@@ -65,8 +65,8 @@ class AttentionAdditionTrainer(AbstractAttentionTrainer):
                               {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
                               {'params': self.model.spatial_attention.parameters(),
                                'lr': self.args.learning_rate_backbone},
-                              {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
-                              {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp}]
+                              {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone}]
+                              # {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp}]
         else:
             self.model = model_attention_f3_f2.MattingNetwork(self.args.model_variant,
                                                               pretrained_backbone=True,

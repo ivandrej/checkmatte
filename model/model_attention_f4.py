@@ -28,13 +28,13 @@ class MattingNetwork(nn.Module):
             print("Variant is mobilenetv3")
             self.backbone = MobileNetV3LargeEncoder(pretrained_backbone)
             self.backbone_bgr = MobileNetV3LargeEncoder(pretrained_backbone)
-            self.aspp = LRASPP(480, 128)
+            # self.aspp = LRASPP(480, 128)
             # self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
             self.spatial_attention = SpatialAttention(480, 480)
 
-            self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
+            self.decoder = RecurrentDecoder([16, 24, 40, 480], [80, 40, 32, 16])
         else:
             self.backbone = ResNet50Encoder(pretrained_backbone)
             self.aspp = LRASPP(2048, 256)
@@ -76,8 +76,9 @@ class MattingNetwork(nn.Module):
 
         bgr_guidance, attention = self.spatial_attention(f4, f4_bgr, return_intermediate)
         f4_combined = bgr_guidance + f4
-        f4_combined = self.aspp(f4_combined)
+        # f4_combined = self.aspp(f4_combined)
 
+        print("F4 combined: ", f4_combined.shape)
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
 
         if not segmentation_pass:
