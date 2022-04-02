@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from typing import Optional, List
 
 from train_config import BGR_FRAME_DATA_PATHS
-from .mobilenetv3 import MobileNetV3LargeEncoder
+from .smaller_mobilenetv3 import MobileNetV3LargeEncoder
 from .model_attention_addition import SpatialAttention
 from .resnet import ResNet50Encoder
 from .lraspp import LRASPP
@@ -28,11 +28,11 @@ class MattingNetwork(nn.Module):
             print("Variant is mobilenetv3")
             self.backbone = MobileNetV3LargeEncoder(pretrained_backbone)
             self.backbone_bgr = MobileNetV3LargeEncoder(pretrained_backbone)
-            self.aspp = LRASPP(960, 128)
+            self.aspp = LRASPP(480, 128)
             # self.aspp_bgr = LRASPP(960, 128)
 
             # TODO: Add variables for number of channels
-            self.spatial_attention = SpatialAttention(960, 960)
+            self.spatial_attention = SpatialAttention(480, 480)
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
