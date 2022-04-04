@@ -78,7 +78,6 @@ class MattingNetwork(nn.Module):
         f4_combined = bgr_guidance + f4
         # f4_combined = self.aspp(f4_combined)
 
-        print("F4 combined: ", f4_combined.shape)
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_combined, r1, r2, r3, r4)
 
         if not segmentation_pass:
