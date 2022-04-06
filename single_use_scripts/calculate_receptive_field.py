@@ -3,7 +3,7 @@ import sys
 from torch.nn.modules.conv import Conv2d
 
 sys.path.append("..")
-from model.smaller_mobilenetv3 import MobileNetV3LargeEncoder
+from model.mobilenetv3 import MobileNetV3LargeEncoder
 
 class ReceptiveFieldCalculator:
 
@@ -17,9 +17,9 @@ class ReceptiveFieldCalculator:
 
             kernel_size = module.kernel_size[0]
             stride = module.stride[0]
-            dilation = module.dilation
-
-            self.r = self.r + (kernel_size - 1) * self.sp
+            # dilation = module.dilation[0]
+            dilation = 1
+            self.r = self.r + (kernel_size - 1) * dilation * self.sp
             self.sp *= stride
 
             if kernel_size > 1:
