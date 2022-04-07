@@ -6,7 +6,7 @@ import torch
 sys.path.append("..")
 from model import model_attention_addition, model_attention_concat, model_attention_f3
 
-from inference import convert_video, FixedOffsetMatcher
+from inference_for_evaluation import convert_video, FixedOffsetMatcher
 import argparse
 
 """
@@ -94,7 +94,8 @@ def inference(experiment_dir, model_type, load_model, input_dir, clips, input_re
                 output_video_mbps=4,  # Output video mbps. Not needed for png sequence.
                 seq_chunk=12,  # Process n frames at once for better parallelism.
                 num_workers=1,  # Only for image sequence input. Reader threads.
-                progress=True  # Print conversion progress.
+                progress=True,  # Print conversion progress.
+                bgr_rotation=(0, 0)
             )
 
         # Used this for replicating rvm evaluation
