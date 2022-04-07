@@ -6,7 +6,7 @@ import torch
 sys.path.append("..")
 from model import model_attention_addition, model_attention_concat, model_attention_f3
 
-from inference_for_evaluation import convert_video, FixedOffsetMatcher
+from evaluation.inference_for_evaluation import convert_video, FixedOffsetMatcher
 import argparse
 
 """
@@ -44,7 +44,7 @@ def get_model(model_type):
     return model
 
 def inference(experiment_dir, model_type, load_model, input_dir, clips, input_resize,
-              output_type="png_sequence", bgr_offset=0):
+              output_type="png_sequence", bgr_offset=0, bgr_rotation=(0, 0)):
     model = get_model(model_type).eval().cuda()
     model.load_state_dict(torch.load(load_model))
 
@@ -95,7 +95,7 @@ def inference(experiment_dir, model_type, load_model, input_dir, clips, input_re
                 seq_chunk=12,  # Process n frames at once for better parallelism.
                 num_workers=1,  # Only for image sequence input. Reader threads.
                 progress=True,  # Print conversion progress.
-                bgr_rotation=(0, 0)
+                bgr_rotation=bgr_rotation
             )
 
         # Used this for replicating rvm evaluation

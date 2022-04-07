@@ -5,6 +5,8 @@ from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Tuple
+
+from torchvision.transforms import InterpolationMode
 from tqdm.auto import tqdm
 
 from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, ImagePairSequenceWriter
@@ -36,14 +38,14 @@ def convert_video(model,
                   output_alpha: Optional[str] = None,
                   output_foreground: Optional[str] = None,
                   bgr_src_pairs: Optional[str] = None,
-                  output_attention: Optional[str] = None,
                   output_video_mbps: Optional[float] = None,
                   seq_chunk: int = 1,
                   num_workers: int = 0,
                   progress: bool = True,
                   device: Optional[str] = None,
                   dtype: Optional[torch.dtype] = None,
-                  bgr_rotation: Optional[Tuple[int, int]] = (0, 0)):
+                  bgr_rotation: Optional[Tuple[int, int]] = (0, 0),
+                  attention_visualizer = None):
     """
     Args:
         input_source:A video file, or an image sequence directory. Images must be sorted in accending order, support png and jpg.
@@ -84,7 +86,7 @@ def convert_video(model,
     if input_resize is not None:
         transform_bgr = transforms.Compose([
             transforms.Resize(input_resize[::-1]),
-            transforms.RandomRotation(bgr_rotation),
+            transforms.RandomRotation(bgr_rotation, interpolation=InterpolationMode.BILINEAR),
             transforms.ToTensor()
         ])
     else:
@@ -137,8 +139,6 @@ def convert_video(model,
             writer_fgr = ImageSequenceWriter(output_foreground, 'png')
         if bgr_src_pairs is not None:
             writer_bgr = ImagePairSequenceWriter(bgr_src_pairs, 'png')
-        if output_attention is not None:
-            attention_visualizer = TestVisualizer(output_attention)
 
     # Inference
     model = model.eval()
@@ -170,7 +170,8 @@ def convert_video(model,
 
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
                 bgr = bgr.to(device, dtype, non_blocking=True).unsqueeze(0)  # [B, T, C, H, W]
-                fgr, pha, attention, *rec = model(src, bgr, *rec, downsample_ratio)
+                return_intermediate = (attention_visualizer is not None)
+                fgr, pha, attention, *rec = model(src, bgr, *rec, downsample_ratio, return_intermediate=return_intermediate)
 
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])
@@ -185,8 +186,8 @@ def convert_video(model,
                     writer_com.write(com[0])
                 if bgr_src_pairs is not None:
                     writer_bgr.write(bgr[0], src[0])
-                if output_attention is not None:
-                    attention_visualizer(attention[0])
+                if attention_visualizer is not None:
+                    attention_visualizer(attention['attention'][0], src[0], bgr[0])
 
                 bar.update(src.size(1))
     except Exception as e:
