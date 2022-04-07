@@ -47,7 +47,7 @@ class AbstractAttentionTrainer:
     def base_args(self):
         parser = argparse.ArgumentParser()
         # Model
-        parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'resnet50'])
+        parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'mobilenetv3reduced', 'resnet50'])
 
         # Matting dataset
         parser.add_argument('--dataset', type=str, required=True, choices=['videomatte', 'imagematte'])

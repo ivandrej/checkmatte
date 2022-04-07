@@ -1,10 +1,9 @@
-from torch import nn
 from torchvision.models.mobilenetv3 import MobileNetV3, InvertedResidualConfig
 from torchvision.models.utils import load_state_dict_from_url
 from torchvision.transforms.functional import normalize
 
 
-class MobileNetV3LargeEncoder(MobileNetV3):
+class MobileNetV3ReducedEncoder(MobileNetV3):
     def __init__(self, pretrained: bool = False):
         super().__init__(
             inverted_residual_setting=[
