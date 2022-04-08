@@ -28,6 +28,7 @@ parser.add_argument('--load-model', type=str, required=True)
 parser.add_argument('--temporal-offset', type=int, default=0)
 parser.add_argument('--output-type', type=str, default='video', required=False)
 parser.add_argument('--resize', type=int, default=(512, 288), nargs=2)
+parser.add_argument('--bgr_rotation', type=int, nargs=2, default=(0, 0))  # only used for composited videos
 parser.add_argument('--epochs', '--list', nargs='+', required=True)
 
 # Params for attention rectangle
@@ -39,7 +40,7 @@ if not os.path.exists(args.out_dir):
 
 
 for epoch in args.epochs:
-    out_dir = os.path.join(args.out_dir, f"epoch-{epoch}")
+    out_dir = os.path.join(args.out_dir, f"epoch-{epoch}", f"rotation{args.bgr_rotation[1]}")
 
     model = get_model(args.model_type).eval().cuda()
     model.load_state_dict(torch.load(os.path.join(args.load_model, f"epoch-{epoch}.pth")))
@@ -63,6 +64,6 @@ for epoch in args.epochs:
         # [Optional] Output the raw foreground prediction.
         seq_chunk=12,  # Process n frames at once for better parallelism.
         progress=True,  # Print conversion progress.
-        bgr_rotation=(25, 30),
+        bgr_rotation=args.bgr_rotation,
         attention_visualizer=attention_visualizer
     )
