@@ -1,6 +1,8 @@
 import argparse
 import os
 
+import pandas as pd
+
 import evaluate_experiment
 import perform_experiment
 from composite import read_metadata
@@ -22,7 +24,6 @@ def read_args():
 if __name__ == "__main__":
     args = read_args()
     input_dir = args.input_dir
-    out_dir = os.path.join(args.experiment_dir)
 
     clips = read_metadata(args.experiment_metadata)
     # if args.random_bgr:
@@ -42,3 +43,14 @@ if __name__ == "__main__":
             print("Performing evaluation...")
             evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize,
                                   metrics=['pha_mad', 'pha_bgr_mad', 'pha_fgr_mad'])
+
+    summary = {'misalignment': [], 'pha_mad': [], 'pha_bgr_mad': [], 'pha_fgr_mad': []}
+    for misalignment_type in os.listdir(args.experiment_dir):
+        df = pd.read_csv(os.path.join(args.experiment_dir, misalignment_type, 'metrics.csv')).set_index("clipname")
+        summary['misalignment'].append(misalignment_type)
+        # print(df)
+        summary['pha_mad'].append(df.loc['mean', 'pha_mad'])
+        summary['pha_bgr_mad'].append(df.loc['mean', 'pha_bgr_mad'])
+        summary['pha_fgr_mad'].append(df.loc['mean', 'pha_fgr_mad'])
+
+    pd.DataFrame.from_dict(summary).to_csv(os.path.join(args.experiment_dir, 'summary.csv'))
