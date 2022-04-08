@@ -103,7 +103,7 @@ from dataset.videomatte import (
 from evaluation.evaluation_metrics import MetricMAD
 from model.rvm import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
-from train_loss import matting_loss
+from train_loss import matting_loss, pha_loss
 from utils import tensor_memory_usage, model_size
 
 
@@ -298,7 +298,7 @@ class Trainer:
         
         with autocast(enabled=not self.args.disable_mixed_precision):
             pred_fgr, pred_pha = self.model_ddp(true_src, downsample_ratio=downsample_ratio)[:2]
-            loss = matting_loss(pred_fgr, pred_pha, true_fgr, true_pha)
+            loss = pha_loss(pred_pha, true_pha)
 
         if self.step == 0:
             print("True fgr memory usage: ", tensor_memory_usage(true_fgr))
