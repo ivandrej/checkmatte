@@ -101,7 +101,7 @@ from dataset.videomatte import (
     VideoMatteSpecializedNoAugmentation,
 )
 from evaluation.evaluation_metrics import MetricMAD
-from model.model import MattingNetwork
+from model.rvm import MattingNetwork
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import matting_loss
 from utils import tensor_memory_usage, model_size
@@ -120,7 +120,7 @@ class Trainer:
     def parse_args(self):
         parser = argparse.ArgumentParser()
         # Model
-        parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'resnet50'])
+        parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'mobilenetv3reduced', 'resnet50'])
         # Matting dataset
         parser.add_argument('--dataset', type=str, required=True, choices=['videomatte', 'imagematte'])
         parser.add_argument('--videomatte-clips', type=int, default=-1)

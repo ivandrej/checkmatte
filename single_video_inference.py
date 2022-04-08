@@ -5,7 +5,7 @@ import os
 
 import torch
 
-from model import model, model_concat_bgr
+from model import rvm, model_concat_bgr
 
 from inference import convert_video
 

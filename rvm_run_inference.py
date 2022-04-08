@@ -2,7 +2,7 @@ import os
 import torch
 import argparse
 
-from model import model
+from model import rvm
 from rvm_inference import convert_video
 
 

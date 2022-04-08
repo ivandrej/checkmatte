@@ -4,7 +4,7 @@ import sys
 import torch
 
 sys.path.append("..")
-from model.model import MattingNetwork
+from model.rvm import MattingNetwork
 from rvm_inference import convert_video
 import argparse
 

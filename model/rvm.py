@@ -10,6 +10,8 @@ from .lraspp import LRASPP
 from .decoder import RecurrentDecoder, Projection
 from .fast_guided_filter import FastGuidedFilterRefiner
 from .deep_guided_filter import DeepGuidedFilterRefiner
+from .smaller_mobilenetv3 import MobileNetV3ReducedEncoder
+
 
 class MattingNetwork(nn.Module):
     def __init__(self,
@@ -17,13 +19,18 @@ class MattingNetwork(nn.Module):
                  refiner: str = 'deep_guided_filter',
                  pretrained_backbone: bool = False):
         super().__init__()
-        assert variant in ['mobilenetv3', 'resnet50']
+        assert variant in ['mobilenetv3', 'resnet50', 'mobilenetv3reduced']
         assert refiner in ['fast_guided_filter', 'deep_guided_filter']
         
         if variant == 'mobilenetv3':
             print("Variant is mobilenetv3")
             self.backbone = MobileNetV3LargeEncoder(pretrained_backbone)
             self.aspp = LRASPP(960, 128)
+            self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
+        elif variant == 'mobilenetv3reduced':
+            print("Variant is mobilenetv3reduced")
+            self.backbone = MobileNetV3ReducedEncoder(pretrained_backbone)
+            self.aspp = LRASPP(480, 128)
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
             self.backbone = ResNet50Encoder(pretrained_backbone)

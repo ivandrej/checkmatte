@@ -7,7 +7,7 @@ import sys
 import torch
 
 sys.path.append('..')
-from model import model, model_attention_addition, model_attention_concat
+from model import rvm, model_attention_addition, model_attention_concat
 
 from inference_write_single_frame import convert_video, FixedOffsetMatcher
 
