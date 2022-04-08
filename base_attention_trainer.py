@@ -23,8 +23,9 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
-from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
-    VideoMattePrecapturedBgrValidAugmentation
+from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrDataset, \
+    VideoMattePrecapturedBgrTrainAugmentation, \
+    VideoMattePrecapturedBgrValidAugmentation, VideoMattePrecapturedBgrOnlyTrainAugmentation
 from evaluation.evaluation_metrics import MetricMAD
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import pha_loss
@@ -66,7 +67,8 @@ class AbstractAttentionTrainer:
         parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
         parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
         # transformations for the bgr and person frames. Default is no transformations
-        parser.add_argument('--transformations', type=str, choices=['none', 'person_only', 'same_person_bgr'],
+        parser.add_argument('--transformations', type=str,
+                            choices=['none', 'bgr_only', 'person_only', 'same_person_bgr'],
                             default='none')
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
@@ -122,7 +124,9 @@ class AbstractAttentionTrainer:
         size_hr = (self.args.resolution_hr, self.args.resolution_hr)
         size_lr = (self.args.resolution_lr, self.args.resolution_lr)
 
-        if self.args.transformations == 'person_only':
+        if self.args.transformations == 'bgr_only':
+            train_augmentation = VideoMattePrecapturedBgrOnlyTrainAugmentation(self.args.resolution_lr)
+        elif self.args.transformations == 'person_only':
             train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)
         elif self.args.transformations == 'same_person_bgr':
             train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)

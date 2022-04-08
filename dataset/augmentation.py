@@ -119,17 +119,25 @@ class MotionAugmentation:
         return fgrs, phas, bgrs
     
     @staticmethod
-    def static_affine(*imgs, scale_ranges):
+    def static_affine(*imgs, scale_ranges,
+                      degrees=(-10, 10),
+                      translate=(0.1, 0.1),
+                      shears=(-5, 5)):
         params = transforms.RandomAffine.get_params(
-            degrees=(-10, 10), translate=(0.1, 0.1), scale_ranges=scale_ranges,
-            shears=(-5, 5), img_size=imgs[0][0].size)
+            degrees=degrees, translate=translate, scale_ranges=scale_ranges,
+            shears=shears, img_size=imgs[0][0].size)
         imgs = [[F.affine(t, *params, F.InterpolationMode.BILINEAR) for t in img] for img in imgs]
         return imgs if len(imgs) > 1 else imgs[0] 
     
     @staticmethod
-    def motion_affine(*imgs):
-        config = dict(degrees=(-10, 10), translate=(0.1, 0.1),
-                      scale_ranges=(0.9, 1.1), shears=(-5, 5), img_size=imgs[0][0].size)
+    def motion_affine(*imgs,
+                      degrees=(-10, 10),
+                      translate=(0.1, 0.1),
+                      shears=(-5, 5),
+                      scale_ranges=(0.9, 1.1)
+                      ):
+        config = dict(degrees=degrees, translate=translate,
+                      scale_ranges=scale_ranges, shears=shears, img_size=imgs[0][0].size)
         angleA, (transXA, transYA), scaleA, (shearXA, shearYA) = transforms.RandomAffine.get_params(**config)
         angleB, (transXB, transYB), scaleB, (shearXB, shearYB) = transforms.RandomAffine.get_params(**config)
         

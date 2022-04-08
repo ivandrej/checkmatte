@@ -3,7 +3,8 @@ import random
 
 from PIL import Image
 import numpy as np
-from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation, PrecapturedBgrAndPersonSameAugmentation
+from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation, PrecapturedBgrAndPersonSameAugmentation, \
+    PrecapturedBgrOnlyAugmentation
 from dataset.videomatte import VideoMatteDataset
 
 """
@@ -77,6 +78,23 @@ class VideoMattePrecapturedBgrTrainAugmentation(PrecapturedBgrAndPersonSameAugme
             prob_hflip=0.5,
             prob_pause=0.03,
             random_sized_crop=False
+        )
+
+class VideoMattePrecapturedBgrOnlyTrainAugmentation(PrecapturedBgrOnlyAugmentation):
+    def __init__(self, size):
+        super().__init__(
+            size=size,
+            prob_fgr_affine=0,
+            prob_bgr_affine=0.3,
+            prob_noise=0.1,
+            prob_color_jitter=0.1,
+            prob_grayscale=0.02,
+            prob_sharpness=0.1,
+            prob_blur=0.02,
+            prob_hflip=0,
+            prob_pause=0,
+            random_sized_crop=False,
+            static_affine=True
         )
 
 

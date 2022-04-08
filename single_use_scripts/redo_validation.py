@@ -9,7 +9,7 @@ from torch import multiprocessing as mp
 from torch.utils.data import DataLoader
 
 from dataset.augmentation import ValidFrameSampler
-from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrValidAugmentation
+from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrValidAugmentation
 from train_config import BGR_FRAME_DATA_PATHS
 
 

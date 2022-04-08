@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
 from dataset.precaptured_bgr_augmentation import PrecapturedBgrAndPersonSameAugmentation
-from dataset.videomatte_bgr_frame import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
+from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
 from evaluation.evaluation_metrics import MetricMAD
 from model.model_concat_bgr import MattingNetwork
