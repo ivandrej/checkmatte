@@ -26,10 +26,15 @@ File structure:
         - fgr.mp4
 """
 
-
-def inference(experiment_dir, input_dir, input_resize):
+"""
+    load_model: the path to a .pth RVM checkpoint. If none, will load the fully trained RVM model
+"""
+def inference(experiment_dir, input_dir, input_resize, load_model=None):
     model = MattingNetwork("mobilenetv3").eval().cuda()
-    model.load_state_dict(torch.load("/media/andivanov/DATA/training/rvm_mobilenetv3.pth"))
+    if load_model is None:
+        model.load_state_dict(torch.load("/media/andivanov/DATA/training/rvm_mobilenetv3.pth"))
+    else:
+        model.load_state_dict(torch.load(load_model))
 
     if input_dir is None:
         input_dir = os.path.join(experiment_dir, "input")

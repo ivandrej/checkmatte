@@ -18,6 +18,7 @@ def read_args():
     parser.add_argument('--experiment-metadata', type=str, required=True)
     parser.add_argument('--experiment-dir', type=str, required=True)
     parser.add_argument('--input-dir', type=str, required=True)
+    parser.add_argument('--model', type=str, default=None)
     parser.add_argument('--resize', type=int, required=True, nargs=2)
     parser.add_argument('--num-frames', type=int, default=100)
     parser.add_argument('--num-workers', type=int, default=8)
@@ -31,7 +32,7 @@ if __name__ == "__main__":
     out_dir = os.path.join(args.experiment_dir, "out")
 
     print("Performing inference...")
-    rvm_perform_experiment.inference(args.experiment_dir, input_dir, args.resize)
+    rvm_perform_experiment.inference(args.experiment_dir, input_dir, args.resize, load_model=args.model)
 
     print("Performing evaluation...")
     evaluate_experiment.Evaluator(out_dir, args.experiment_metadata, args.num_workers, args.resize,
