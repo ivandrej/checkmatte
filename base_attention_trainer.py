@@ -87,6 +87,7 @@ class AbstractAttentionTrainer:
 
         # Checkpoint loading and saving
         parser.add_argument('--checkpoint', type=str)
+        parser.add_argument('--optimizer-checkpoint', type=str, default=None)
         parser.add_argument('--checkpoint-dir', type=str, required=True)
         parser.add_argument('--checkpoint-save-interval', type=int, default=500)
 
@@ -222,6 +223,10 @@ class AbstractAttentionTrainer:
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
 
         self.optimizer = Adam(self.param_lrs)
+        if self.args.optimizer_checkpoint:
+            self.log("Loading optimizer")
+            self.log(self.optimizer.load_state_dict(
+                torch.load(self.args.optimizer_checkpoint, map_location=f'cuda:{self.rank}')))
         # self.scaler = GradScaler()
 
     def init_writer(self):
@@ -544,6 +549,7 @@ class AbstractAttentionTrainer:
         if self.rank == 0:
             os.makedirs(self.args.checkpoint_dir, exist_ok=True)
             torch.save(self.model.state_dict(), os.path.join(self.args.checkpoint_dir, f'epoch-{self.epoch}.pth'))
+            torch.save(self.optimizer.state_dict(), os.path.join(self.args.checkpoint_dir, f'optimizer-epoch-{self.epoch}.pth'))
             self.log('Model saved')
         dist.barrier()
 
