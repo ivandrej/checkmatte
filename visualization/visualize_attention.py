@@ -11,39 +11,6 @@ from matplotlib.patches import Rectangle
 from torchvision.utils import make_grid
 
 """
-  /outdir
-    /attention_visualization
-      - /0-0 (person h = 0, w = 0)
-         0.png (frame = 0) 
-         .
-         .
-         .
-"""
-
-
-class TestVisualizer:
-    def __init__(self, outdir):
-        self.outdir = outdir
-        self.frameidx = 0
-
-    # First frame of sequence only
-    # All pixels
-    def __call__(self, attention):
-        assert (attention.ndim == 5)
-        T, H, W, _, _ = attention.shape
-
-        for h, w in key_spatial_locations(H, W):
-            for t in range(T):
-                figure = get_attention_fig(attention, h, w, t)
-
-                location_out_dir = os.path.join(self.outdir, f"{h}-{w}")
-                os.makedirs(location_out_dir, exist_ok=True)
-
-                figure.savefig(os.path.join(location_out_dir, f"{self.frameidx + t}.png"))
-                figure.clear()
-        self.frameidx += T
-
-"""
     Plots a sequence of attention to Tensorboard (not a batch of sequences):
       - 4 key locations
       - all frames
@@ -152,25 +119,6 @@ def tensor_to_pyplot_np(x):
     x = x.cpu().detach().numpy().astype(np.uint8)
     return x
 
-"""
-    DHA average over all frames of all batches.
-    4 person anchor positions sampled.
-"""
-def calc_avg_dha(attention):
-    assert (attention.ndim == 6)
-    B, T, H, W, _, _ = attention.shape
-
-    dha_total, cnt = 0, 0
-    for b in range(B):
-        for h, w in key_spatial_locations(H, W):
-            for t in range(T):
-                attention_matrix = attention[b][t][h][w]
-                dha_total += metric_DHA(attention_matrix, h, w)
-                cnt += 1
-
-    dha_avg = dha_total / cnt
-    return dha_avg
-
 def plot_attention(attention, h, w, t):
     figure = get_attention_fig(attention, h, w, t)
 
@@ -216,20 +164,6 @@ def get_attention_over_bgr_fig(attention, bgr, h, w, t):
 
 
 """
-    DHA = distance of highest activation
-"""
-def metric_DHA(attention_matrix, h, w):
-    max_h, max_w = matrix_argmax(attention_matrix)
-
-    return numpy.linalg.norm([max_h - h, max_w - w])  # Euclidean distance
-    # return min(np.abs(h - max_h), np.abs(w - max_w))
-
-
-def matrix_argmax(m: numpy.ndarray):
-    assert (m.ndim == 2)
-    return np.unravel_index(np.argmax(m, axis=None), m.shape)
-
-"""
  The most important spatial locations in the person feature map.
  Used to visualize attention
 """
@@ -242,3 +176,38 @@ def key_spatial_locations(H, W):
         (3 * H // 4, W // 4),  # bottom left corner
         (3 * H // 4, 3 * W // 4)  # bottom right corner
     ]
+
+# METRICS
+
+"""
+    DHA average over all frames of all batches.
+    4 person anchor positions sampled.
+"""
+def calc_avg_dha(attention):
+    assert (attention.ndim == 6)
+    B, T, H, W, _, _ = attention.shape
+
+    dha_total, cnt = 0, 0
+    for b in range(B):
+        for h, w in key_spatial_locations(H, W):
+            for t in range(T):
+                attention_matrix = attention[b][t][h][w]
+                dha_total += metric_DHA(attention_matrix, h, w)
+                cnt += 1
+
+    dha_avg = dha_total / cnt
+    return dha_avg
+
+"""
+    DHA = distance of highest activation
+"""
+def metric_DHA(attention_matrix, h, w):
+    max_h, max_w = matrix_argmax(attention_matrix)
+
+    return numpy.linalg.norm([max_h - h, max_w - w])  # Euclidean distance
+    # return min(np.abs(h - max_h), np.abs(w - max_w))
+
+
+def matrix_argmax(m: numpy.ndarray):
+    assert (m.ndim == 2)
+    return np.unravel_index(np.argmax(m, axis=None), m.shape)

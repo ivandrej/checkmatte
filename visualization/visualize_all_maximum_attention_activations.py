@@ -16,7 +16,7 @@ import argparse
 
 from evaluation.perform_experiment import get_model
 from evaluation.inference_for_evaluation import convert_video
-from visualization.visualize_attention_all_maximum_activations import AllMaximumActivationsVisualizer
+from visualization.attention_all_maximum_activations import AllMaximumActivationsVisualizer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)

@@ -13,9 +13,6 @@ from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, Image
 
 
 # TODO: Move to separate class
-from visualization.visualize_attention import TestVisualizer
-
-
 class FixedOffsetMatcher:
     def __init__(self, offset):
         self.offset = offset

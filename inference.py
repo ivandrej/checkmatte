@@ -11,9 +11,6 @@ from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, Image
 
 
 # TODO: Move to separate class
-from visualization.visualize_attention import TestVisualizer
-
-
 class FixedOffsetMatcher:
     def __init__(self, offset):
         self.offset = offset
@@ -36,7 +33,6 @@ def convert_video(model,
                   output_alpha: Optional[str] = None,
                   output_foreground: Optional[str] = None,
                   bgr_src_pairs: Optional[str] = None,
-                  output_attention: Optional[str] = None,
                   output_video_mbps: Optional[float] = None,
                   seq_chunk: int = 1,
                   num_workers: int = 0,
@@ -126,8 +122,6 @@ def convert_video(model,
             writer_fgr = ImageSequenceWriter(output_foreground, 'png')
         if bgr_src_pairs is not None:
             writer_bgr = ImagePairSequenceWriter(bgr_src_pairs, 'png')
-        if output_attention is not None:
-            attention_visualizer = TestVisualizer(output_attention)
 
     # Inference
     model = model.eval()
