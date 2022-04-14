@@ -168,8 +168,6 @@ def convert_video(model,
                     writer_com.write(com[0])
                 if bgr_src_pairs is not None:
                     writer_bgr.write(bgr[0], src[0])
-                if output_attention is not None:
-                    attention_visualizer(attention[0])
 
                 bar.update(src.size(1))
     except Exception as e:
