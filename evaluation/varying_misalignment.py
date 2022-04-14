@@ -14,7 +14,7 @@ def read_args():
     parser.add_argument('--experiment-dir', type=str, required=True)
     parser.add_argument('--input-dir', type=str, required=True)
     parser.add_argument('--load-model', type=str, required=True)
-    parser.add_argument('--model-type', type=str, choices=['addition', 'concat', 'f3'], default='addition')
+    parser.add_argument('--model-type', type=str, choices=['addition', 'concat', 'f3', 'f4'], default='addition')
     parser.add_argument('--resize', type=int, default=None, nargs=2)
     parser.add_argument('--num-frames', type=int, default=100)
     parser.add_argument('--num-workers', type=int, default=8)
