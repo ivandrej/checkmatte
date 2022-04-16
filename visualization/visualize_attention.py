@@ -75,6 +75,34 @@ class RectangleVisualizer:
                         os.makedirs(frame_out_dir, exist_ok=True)
                         Image.fromarray(res).save(os.path.join(frame_out_dir, f"{h}-{w}.png"))
                         plt.close()
+
+                        fig = plt.figure(figsize=(10.24, 5.76), dpi=250)
+                        ax = fig.add_subplot(111)
+                        attention_matrix = attention[t][h][w]
+                        attention_matrix = attention_matrix * 100
+                        sns.heatmap(attention_matrix, cmap="cubehelix", linewidth=0.02, linecolor='green',
+                                         annot=True, fmt=".0f", ax=ax)
+                        heatmap_out_dir = os.path.join(frame_out_dir, "heatmap")
+                        os.makedirs(heatmap_out_dir, exist_ok=True)
+                        plt.savefig(os.path.join(heatmap_out_dir, f"{h}-{w}.png"), bbox_inches='tight')
+
+                        fig = plt.figure(figsize=(10.24, 5.76), dpi=250)
+                        ax = fig.add_subplot(111)
+                        sns.heatmap(attention_matrix, cmap="cubehelix", linewidth=0.1, linecolor='green',
+                                         annot=False, fmt=".1f", zorder=4, alpha=0.5, cbar=True, ax=ax)
+                        # h and w are swapped in pyplot plots compared to numpy arrays
+                        # ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1, zorder=5))
+                        # plt.show()
+                        bgr_np = tensor_to_pyplot_np(bgr[t])
+                        ax.imshow(bgr_np,
+                                  aspect=ax.get_aspect(),
+                                  extent=ax.get_xlim() + ax.get_ylim(),
+                                  zorder=1)
+                        heatmap_over_bgr_dir = os.path.join(frame_out_dir, "heatmap_over_bgr")
+                        os.makedirs(heatmap_over_bgr_dir, exist_ok=True)
+                        plt.savefig(os.path.join(heatmap_over_bgr_dir, f"{h}-{w}.png"), bbox_inches='tight')
+
+
             self.frameidx += 1
 
 """
@@ -152,8 +180,8 @@ def get_attention_fig(attention, h, w, t):
 def get_attention_over_bgr_fig(attention, bgr, h, w, t):
     attention_matrix = attention[t][h][w]
     attention_matrix = attention_matrix * 100
-    ax = sns.heatmap(attention_matrix, cmap="Blues", linewidth=0.1, linecolor='green',
-                     annot=False, fmt=".1f", zorder=4, alpha=0.6)
+    ax = sns.heatmap(attention_matrix, cmap="cubehelix", linewidth=0.1, linecolor='green',
+                     annot=False, fmt=".1f", zorder=4, alpha=0.45, cbar=True)
     # h and w are swapped in pyplot plots compared to numpy arrays
     ax.add_patch(Rectangle((w, h), 1, 1, fill=False, edgecolor='red', linewidth=1, zorder=5))
     # plt.show()
