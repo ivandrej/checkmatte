@@ -25,7 +25,8 @@ from tqdm import tqdm
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
 from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrDataset, \
     VideoMattePrecapturedBgrTrainAugmentation, \
-    VideoMattePrecapturedBgrValidAugmentation, VideoMattePrecapturedBgrOnlyTrainAugmentation
+    VideoMattePrecapturedBgrValidAugmentation, VideoMattePrecapturedBgrOnlyTrainAugmentation, \
+    VideoMattePrecapturedBgrRotationOnlyTrainAugmentation
 from evaluation.evaluation_metrics import MetricMAD
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import pha_loss
@@ -68,7 +69,7 @@ class AbstractAttentionTrainer:
         parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
         # transformations for the bgr and person frames. Default is no transformations
         parser.add_argument('--transformations', type=str,
-                            choices=['none', 'bgr_only', 'person_only', 'same_person_bgr'],
+                            choices=['none', 'bgr_only', 'bgr_only_rotation', 'person_only', 'same_person_bgr'],
                             default='none')
         parser.add_argument('--resolution-lr', type=int, default=512)
         parser.add_argument('--resolution-hr', type=int, default=2048)
@@ -127,8 +128,8 @@ class AbstractAttentionTrainer:
 
         if self.args.transformations == 'bgr_only':
             train_augmentation = VideoMattePrecapturedBgrOnlyTrainAugmentation(self.args.resolution_lr)
-        elif self.args.transformations == 'person_only':
-            train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)
+        elif self.args.transformations == 'bgr_only_rotation':
+            train_augmentation = VideoMattePrecapturedBgrRotationOnlyTrainAugmentation(self.args.resolution_lr)
         elif self.args.transformations == 'same_person_bgr':
             train_augmentation = VideoMattePrecapturedBgrTrainAugmentation(self.args.resolution_lr)
         elif self.args.transformations == 'none':

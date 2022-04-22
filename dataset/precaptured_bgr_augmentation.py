@@ -216,6 +216,55 @@ class PrecapturedBgrOnlyAugmentation:
 
         return fgrs, phas, bgrs, bgrs_
 
+"""
+    Only applies rotation to the background frame. The goal is to simulate the rotation misalignment between 
+    the person and the background frame.
+"""
+class PrecapturedBgrRotationOnlyAugmentation:
+    def __init__(self,
+                 size,
+                 random_sized_crop=True):
+        self.size = size
+        self.random_sized_crop = random_sized_crop
+
+    def __call__(self, fgrs, phas, bgrs, bgrs_):
+        bgrs_ = MotionAugmentation.static_affine(bgrs_, degrees=(-15, 15),
+                                                 scale_ranges=(1, 1),
+                                                 translate=(0,0),
+                                                 shears=(0,0))
+
+        # To tensor
+        fgrs = torch.stack([F.to_tensor(fgr) for fgr in fgrs])
+        phas = torch.stack([F.to_tensor(pha) for pha in phas])
+        bgrs = torch.stack([F.to_tensor(bgr) for bgr in bgrs])
+        bgrs_ = torch.stack([F.to_tensor(bgr) for bgr in bgrs_])
+
+        # Resize
+        if self.random_sized_crop:  # random crop of a square of size (self.size, self.size)
+            square_size = (self.size, self.size)
+            params = transforms.RandomResizedCrop.get_params(fgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
+            fgrs = F.resized_crop(fgrs, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
+            phas = F.resized_crop(phas, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
+            params = transforms.RandomResizedCrop.get_params(bgrs, scale=(1, 1), ratio=self.aspect_ratio_range)
+            bgrs = F.resized_crop(bgrs, *params, square_size, interpolation=F.InterpolationMode.BILINEAR)
+        else:  # resize such that smaller side has self.size
+            # Note: We assume all bgrs and fgrs are horizontal
+            # Most of the videos in DVM have the aspect ratio 16:9, but some are slightly different
+            # We explicitly set the aspect ratio to 16:9 so they all have the same shape
+            h, w = self.size, int(self.size * 16 / 9)
+            bgrs = F.resize(bgrs, (h, w), interpolation=F.InterpolationMode.BILINEAR)
+            bgrs_ = F.resize(bgrs_, (h, w), interpolation=F.InterpolationMode.BILINEAR)
+
+            # Match size of fgrs to bgrs. Most fgrs are 432 x 768 - the standard aspect ratio of 16:9. A few are
+            # 405 x 768, so we have to match the size to the bgr like this so they are the same size after resizing.
+            fgrs = F.resize(fgrs, (h, w), interpolation=F.InterpolationMode.BILINEAR)
+            phas = F.resize(phas, (h, w), interpolation=F.InterpolationMode.BILINEAR)
+
+        return fgrs, phas, bgrs, bgrs_
+
+"""
+    Applies the same transformations to the background and the person frame. 
+"""
 class PrecapturedBgrAndPersonSameAugmentation:
     def __init__(self,
                  size,
