@@ -4,7 +4,7 @@ import random
 from PIL import Image
 import numpy as np
 from dataset.precaptured_bgr_augmentation import PrecapturedBgrAugmentation, PrecapturedBgrAndPersonSameAugmentation, \
-    PrecapturedBgrOnlyAugmentation
+    PrecapturedBgrOnlyAugmentation, PrecapturedBgrRotationOnlyAugmentation
 from dataset.videomatte import VideoMatteDataset
 
 """
@@ -95,6 +95,13 @@ class VideoMattePrecapturedBgrOnlyTrainAugmentation(PrecapturedBgrOnlyAugmentati
             prob_pause=0,
             random_sized_crop=False,
             static_affine=True
+        )
+
+class VideoMattePrecapturedBgrRotationOnlyTrainAugmentation(PrecapturedBgrRotationOnlyAugmentation):
+    def __init__(self, size):
+        super().__init__(
+            size=size,
+            random_sized_crop=False
         )
 
 
