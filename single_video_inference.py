@@ -27,7 +27,7 @@ else:
         # TODO: Better naming of models
         model = model_concat_bgr.MattingNetwork("mobilenetv3").eval().cuda()
     else:
-        model = model.MattingNetwork("mobilenetv3").eval().cuda()
+        model = rvm.MattingNetwork("mobilenetv3").eval().cuda()
     model.load_state_dict(torch.load(args.load_model))
 
 if not os.path.exists(args.out_dir):

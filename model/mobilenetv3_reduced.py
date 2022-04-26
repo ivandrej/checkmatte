@@ -2,7 +2,11 @@ from torchvision.models.mobilenetv3 import MobileNetV3, InvertedResidualConfig
 from torchvision.models.utils import load_state_dict_from_url
 from torchvision.transforms.functional import normalize
 
-
+"""
+    A version of the MobileNetV3 encoder RVM uses where we remove the last 5 layers.
+    This is mainly used by the higher resolution attention models. For the motivation refer to
+    the thesis report. 
+"""
 class MobileNetV3ReducedEncoder(MobileNetV3):
     def __init__(self, pretrained: bool = False):
         super().__init__(

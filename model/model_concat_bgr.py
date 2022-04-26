@@ -12,13 +12,13 @@ from .decoder import RecurrentDecoder, Projection
 from .fast_guided_filter import FastGuidedFilterRefiner
 from .deep_guided_filter import DeepGuidedFilterRefiner
 
-
-# TODO: Update this class to only perform concat without addition. Addition with concat is moved to a separate class
+"""
+    Simply concatenates the background and person frame features 
+"""
 class MattingNetwork(nn.Module):
     def __init__(self,
                  variant: str = 'mobilenetv3',
                  refiner: str = 'deep_guided_filter',
-                 bgr_integration: str = 'concat',
                  pretrained_on_rvm=True,
                  pretrained_backbone: bool = False):
         super().__init__()
@@ -31,11 +31,6 @@ class MattingNetwork(nn.Module):
             self.backbone_bgr = MobileNetV3LargeEncoder(pretrained_backbone)
             self.aspp = LRASPP(960, 128)
             self.aspp_bgr = LRASPP(960, 128)
-
-            # TODO: Add variables for number of channels
-            self.spatial_attention = None
-            if bgr_integration == "attention":
-                self.spatial_attention = SpatialAttention(128, 128)
 
             self.project_concat = ProjectionWithBnRelu(256, 128)
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
@@ -79,14 +74,7 @@ class MattingNetwork(nn.Module):
         f1_bgr, f2_bgr, f3_bgr, f4_bgr = self.backbone_bgr(bgr_sm)
         f4_bgr = self.aspp_bgr(f4_bgr)
 
-        if self.spatial_attention:
-            bgr_guidance = self.spatial_attention(f4, f4_bgr)
-        else:
-            bgr_guidance = f4_bgr
-
-        # print("ASPP features: ", f4_bgr.shape, f4.shape)
-
-        f4_concat = torch.cat((bgr_guidance, f4), dim=2)
+        f4_concat = torch.cat((f4_bgr, f4), dim=2)
         f4_concat = self.project_concat(f4_concat)
 
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4_concat, r1, r2, r3, r4)
@@ -113,46 +101,6 @@ class MattingNetwork(nn.Module):
             x = F.interpolate(x, scale_factor=scale_factor,
                               mode='bilinear', align_corners=False, recompute_scale_factor=False)
         return x
-
-
-class SpatialAttention(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.query_conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.key_conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.softmax = nn.Softmax(dim=-1)
-
-    def forward_single_frame(self, p, b):
-        assert(p.shape == b.shape)
-        H, W = p.shape[-2:]
-        # query = person frames, key = background frames, value = background frames
-        query = self.query_conv(p).flatten(2, 3)  # B x C x N
-        query = query.permute(0, 2, 1)  # B x N x C
-        key = self.key_conv(b).flatten(2, 3)  # B x C x N
-
-        energy = torch.bmm(query, key)  # B x N x N
-        attention = self.softmax(energy)  # B x N x N
-
-        value = b.flatten(2, 3).permute(0, 2, 1)  # B x C x N --> B x N x C
-        out = torch.bmm(attention, value)  # B x N x C
-        out = out.permute(0, 2, 1)  # B x C x N
-        out = out.unflatten(-1, (H, W))  # B x C x H x W
-
-        return out
-
-    def forward_time_series(self, p, b):
-        assert (p.shape == b.shape)
-        B, T = p.shape[:2]
-        features = self.forward_single_frame(p.flatten(0, 1), b.flatten(0, 1))
-        features = features.unflatten(0, (B, T))
-        return features
-
-    def forward(self, p, b):
-        assert(p.shape == b.shape)
-        if p.ndim == 5:
-            return self.forward_time_series(p, b)
-        else:
-            return self.forward_single_frame(p, b)
 
 
 class ProjectionWithBnRelu(nn.Module):

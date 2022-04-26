@@ -57,7 +57,6 @@ class Trainer:
         parser.add_argument('--pretrained_on_rvm', action='store_true')
         parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
         parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
-        parser.add_argument('--bgr-integration', type=str, choices=['concat', 'attention'], default='concat')
         parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
         # what kind of transformations to apply to bgr and person frames. Default is no transformations
         parser.add_argument('--transformations', type=str, choices=['none', 'person_only', 'same_person_bgr'], default='none')
@@ -185,33 +184,10 @@ class Trainer:
             num_workers=self.args.num_workers,
             pin_memory=True)
 
-        # TODO: Add segmentation datasets
-        # self.log('Initializing video segmentation datasets')
-        # if self.args.seg_every_n_steps:
-        #     self.dataset_seg_video = YouTubeVISDataset(
-        #         videodir=SPECIALIZED_DATA_PATHS['youtubevis']['videodir'],
-        #         annfile=SPECIALIZED_DATA_PATHS['youtubevis']['annfile'],
-        #         size=self.args.resolution_lr,
-        #         seq_length=self.args.seq_length_lr,
-        #         seq_sampler=TrainFrameSampler(speed=[1]),
-        #         transform=YouTubeVISAugmentation(self.args.resolution_lr))
-        #     self.datasampler_seg_video = DistributedSampler(
-        #         dataset=self.dataset_seg_video,
-        #         rank=self.rank,
-        #         num_replicas=self.world_size,
-        #         shuffle=True)
-        #     self.dataloader_seg_video = DataLoader(
-        #         dataset=self.dataset_seg_video,
-        #         batch_size=self.args.batch_size_per_gpu,
-        #         num_workers=self.args.num_workers,
-        #         sampler=self.datasampler_seg_video,
-        #         pin_memory=True)
-
     def init_model(self):
         self.log('Initializing model')
         self.model = MattingNetwork(self.args.model_variant,
                                     pretrained_backbone=True,
-                                    bgr_integration=self.args.bgr_integration,
                                     pretrained_on_rvm=self.args.pretrained_on_rvm).to(self.rank)
 
         # for param in self.model.backbone.parameters():
@@ -224,18 +200,13 @@ class Trainer:
 
         self.model = nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
-        param_lrs = [
-            {'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
-            {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
-            {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
-            {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
-            {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
-        ]
-        if self.model.spatial_attention:
-            param_lrs.append({'params': self.model.spatial_attention.parameters(), 'lr': self.args.learning_rate_backbone})
-
-        param_lrs.append({'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone})
-        param_lrs.append({'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp})
+        param_lrs = [{'params': self.model.backbone_bgr.parameters(), 'lr': self.args.learning_rate_backbone},
+                     {'params': self.model.aspp_bgr.parameters(), 'lr': self.args.learning_rate_aspp},
+                     {'params': self.model.project_concat.parameters(), 'lr': self.args.learning_rate_aspp},
+                     {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
+                     {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
+                     {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+                     {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp}]
 
         self.optimizer = Adam(param_lrs)
         self.scaler = GradScaler()
@@ -264,7 +235,6 @@ class Trainer:
                     true_img, true_seg = self.load_next_seg_video_sample()
                     self.train_seg(true_img, true_seg, log_label='seg_video')
 
-                # TODO: Why does this take up so much RAM
                 if self.args.log_randombgr_mad_interval and self.step % self.args.log_randombgr_mad_interval == 0:
                     self.test_on_random_bgr(true_fgr, true_pha, true_bgr, downsample_ratio=1)
 
@@ -312,14 +282,6 @@ class Trainer:
         person_encoder_grad_norm = torch.linalg.vector_norm(
             torch.flatten(self.model_ddp.module.backbone.features[16][0].weight.grad))
         self.writer.add_scalar(f'person_encoder_grad_norm', person_encoder_grad_norm, self.step)
-
-        if self.model_ddp.module.spatial_attention:
-            attention_key_grad_norm = torch.linalg.vector_norm(
-                torch.flatten(self.model_ddp.module.spatial_attention.key_conv.weight.grad))
-            self.writer.add_scalar(f'attention_key_grad_norm', attention_key_grad_norm, self.step)
-            attention_query_grad_norm = torch.linalg.vector_norm(
-                torch.flatten(self.model_ddp.module.spatial_attention.query_conv.weight.grad))
-            self.writer.add_scalar(f'attention_query_grad_norm', attention_query_grad_norm, self.step)
 
         concat_proj_grad_norm = torch.linalg.vector_norm(
             torch.flatten(self.model_ddp.module.project_concat.conv[0].weight.grad))
