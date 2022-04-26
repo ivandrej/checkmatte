@@ -49,11 +49,13 @@ class AbstractAttentionTrainer:
     def base_args(self):
         parser = argparse.ArgumentParser()
         # Model
-        parser.add_argument('--model-variant', type=str, required=True, choices=['mobilenetv3', 'mobilenetv3reduced', 'resnet50'])
+        parser.add_argument('--model-variant', type=str, required=True,
+                            choices=['mobilenetv3', 'mobilenetv3reduced', 'resnet50'])
 
         # Matting dataset
         parser.add_argument('--dataset', type=str, required=True, choices=['videomatte', 'imagematte'])
-        parser.add_argument('--videomatte-clips', type=int, required=True)
+        # A limit on how many videomatte clips. -1 means train on all of videomatte
+        parser.add_argument('--videomatte-clips', type=int, default=-1)
 
         # Learning rate
         parser.add_argument('--learning-rate-backbone', type=float, required=True)
@@ -64,9 +66,8 @@ class AbstractAttentionTrainer:
         # Training setting
         parser.add_argument('--train-hr', action='store_true')
         parser.add_argument('--pretrained_on_rvm', action='store_true')
-        parser.add_argument('--varied-every-n-steps', type=int, default=None)  # no varied bgrs by default
-        parser.add_argument('--seg-every-n-steps', type=int, default=None)  # no seg by default
-        parser.add_argument('--temporal_offset', type=int, default=0)  # temporal offset between precaptured bgr and src
+        # temporal offset between precaptured bgr and src
+        parser.add_argument('--temporal_offset', type=int, default=0)
         # transformations for the bgr and person frames. Default is no transformations
         parser.add_argument('--transformations', type=str,
                             choices=['none', 'bgr_only', 'bgr_only_rotation', 'person_only', 'same_person_bgr'],
@@ -99,8 +100,11 @@ class AbstractAttentionTrainer:
         # Debugging
         parser.add_argument('--disable-progress-bar', action='store_true')
         parser.add_argument('--disable-validation', action='store_true')
+
+        # makes Pytorch operations use float32 instead of float16 by default
         parser.add_argument('--disable-mixed-precision', action='store_true')
-        # throws an error in case of gradient Nans
+
+        # throws an error in case of gradient Nans, use it for debugging only
         parser.add_argument('--enable-anomaly-detection', action='store_true')
 
         return parser
@@ -298,17 +302,28 @@ class AbstractAttentionTrainer:
             self.writer.add_scalar(f'train_{tag}_pha_mad', train_mad, self.step)
 
         if self.rank == 0 and self.step % self.args.log_train_images_interval == 0:
+            # Log input person frame, background frame, predicted pha and ground truth pha
             self.log_train_predictions(precaptured_bgr, pred_pha, true_pha, true_src)
+
+            # Log a visualization of the attention on the training sample
             self.attention_visualizer(attention[0], true_src[0].detach().cpu(), precaptured_bgr[0].detach().cpu(),
                                       self.step, 'train')
+
             # Plot min and max for energy to ensure no overflow or underflow
             self.writer.add_scalar(f'train_{tag}_energy_min', np.min(attention_intermediate['energy']), self.step)
             self.writer.add_scalar(f'train_{tag}_energy_max', np.max(attention_intermediate['energy']), self.step)
 
             train_avg_dha = calc_avg_dha(attention)
             self.writer.add_scalar(f'train_{tag}_attention_dha', train_avg_dha, self.step)
+
+            # Log predictions and visualize attention on a random input background frame, to ensure the model does
+            # not ignore the background input.
             self.test_on_random_bgr(true_src, true_pha, pred_pha, downsample_ratio=1, tag='train')
 
+    """
+        Log predictions and visualize attention on a random input background frame, 
+        to ensure the model does not ignore the background input.
+    """
     def test_on_random_bgr(self, true_src, true_pha, pred_pha, downsample_ratio, tag):
         self.model_ddp.eval()
         with torch.no_grad():

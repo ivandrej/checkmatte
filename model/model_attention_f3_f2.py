@@ -37,7 +37,6 @@ class MattingNetwork(nn.Module):
                 'f2': SpatialAttention(24, 24),
                 'f3': SpatialAttention(40, 40)
             }
-            # TODO: Add variables for number of channels
 
             self.decoder = RecurrentDecoder([16, 24, 40, 128], [80, 40, 32, 16])
         else:
