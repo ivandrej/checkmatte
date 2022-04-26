@@ -10,7 +10,7 @@ from .lraspp import LRASPP
 from .decoder import RecurrentDecoder, Projection
 from .fast_guided_filter import FastGuidedFilterRefiner
 from .deep_guided_filter import DeepGuidedFilterRefiner
-from .smaller_mobilenetv3 import MobileNetV3ReducedEncoder
+from .mobilenetv3_reduced import MobileNetV3ReducedEncoder
 
 
 class MattingNetwork(nn.Module):

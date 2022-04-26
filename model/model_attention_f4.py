@@ -6,7 +6,7 @@ from typing import Optional, List
 
 from train_config import BGR_FRAME_DATA_PATHS
 from .mobilenetv3 import MobileNetV3LargeEncoder
-from .smaller_mobilenetv3 import MobileNetV3ReducedEncoder
+from .mobilenetv3_reduced import MobileNetV3ReducedEncoder
 from .model_attention_addition import SpatialAttention
 from .resnet import ResNet50Encoder
 from .lraspp import LRASPP
