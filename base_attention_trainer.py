@@ -363,8 +363,6 @@ class AbstractAttentionTrainer:
                         # The last batch does not have exactly (batch_size, seq_len) dimensions
                         random_bgr = random_bgr[:true_src.shape[0], :true_src.shape[1], :, :, :]
 
-                        # random_noise_bgr = torch.rand_like(true_src).to(self.rank, non_blocking=True)
-
                         assert (random_bgr.shape == true_src.shape)
                         if total_count == 0:  # only print once
                             print("Validation hard batch shape: ", true_src.shape)

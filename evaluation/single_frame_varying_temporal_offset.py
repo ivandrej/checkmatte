@@ -2,6 +2,8 @@ import argparse
 import os
 from typing import Optional, Tuple
 
+import cv2
+import numpy as np
 import torch
 from PIL import Image
 from torchvision import transforms
@@ -54,20 +56,26 @@ def varying_temporaloffset_experiment(model,
             pframe = transform_src(pframe)
         person_frames.append(pframe)
 
-    os.makedirs(output_dir, exist_ok=True)
+    pha_dir = os.path.join(output_dir, 'pha')
+    os.makedirs(pha_dir, exist_ok=True)
+    side_by_side_dir = os.path.join(output_dir, 'side_by_side')
+    os.makedirs(side_by_side_dir, exist_ok=True)
 
     # Inference
+    model = get_model("f3").eval().cuda()
+    model.load_state_dict(torch.load(args.load_model))
     model = model.eval()
     param = next(model.parameters())
     dtype = param.dtype
     device = param.device
 
     target_t = 97
+    T = 15
     with torch.no_grad():
         for bgr_t in tqdm(range(len(bgrs))):
             # construct the T = 15 sequence p[t - 15, t]
             src = []
-            for person_t in range(target_t - 14, target_t + 1):
+            for person_t in range(target_t - T + 1, target_t + 1):
                 src.append(person_frames[person_t])
             src = torch.stack(src)  # List of T [C, H, W] to tensor of [T, C, H, W]
 
@@ -80,7 +88,17 @@ def varying_temporaloffset_experiment(model,
             fgr, pha, attention, *rec = model(src, bgr, *rec,
                                               downsample_ratio=1, return_intermediate=return_intermediate)
 
-            to_pil_image(pha[0][-1]).save(os.path.join(output_dir, f"{bgr_t}.png"))
+            target_pha = pha[0][-1].detach().cpu().mul(255).byte().permute(1, 2, 0).numpy()
+            target_pha = cv2.cvtColor(target_pha, cv2.COLOR_GRAY2RGB)
+            # print("Target pha shape: ", target_pha.shape)
+            target_src = src[0][-1].detach().cpu().mul(255).permute(1, 2, 0).numpy()
+            bgr = bgr[0][0].detach().cpu().mul(255).permute(1, 2, 0).numpy()
+
+            res = np.uint8(np.concatenate((target_pha, bgr, target_src), axis=1))
+            # print("Res max and min: ", np.max(res), np.min(res))
+            # print("Res shape: ", res.shape)
+            Image.fromarray(res).save(os.path.join(side_by_side_dir, str(bgr_t).zfill(4) + '.png'))
+            to_pil_image(pha[0][-1]).save(os.path.join(output_dir, str(bgr_t).zfill(4) + '.png'))
 
 
 def auto_downsample_ratio(h, w):

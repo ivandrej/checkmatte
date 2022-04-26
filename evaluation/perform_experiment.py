@@ -102,24 +102,6 @@ def inference(experiment_dir, model_type, load_model, input_dir, clips, input_re
                 bgr_rotation=bgr_rotation
             )
 
-        # Used this for replicating rvm evaluation
-        # convert_video(
-        #     model,  # The loaded model, can be on any device (cpu or cuda).
-        #     input_source=os.path.join(args.experiment_dir, "input", sample_name, "com"),
-        #     # A video file or an image sequence directory.
-        #     input_resize=None,  # [Optional] Resize the input (also the output).
-        #     downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
-        #     output_type='png_sequence',  # Choose "video" or "png_sequence"
-        #     output_composition=os.path.join(out_dir, "com"),  # File path if video; directory path if png sequence.
-        #     output_alpha=os.path.join(out_dir, "pha"),  # [Optional] Output the raw alpha prediction.
-        #     output_foreground=os.path.join(out_dir, "fgr"),  # [Optional] Output the raw foreground prediction.
-        #     output_video_mbps=4,  # Output video mbps. Not needed for png sequence.
-        #     seq_chunk=12,  # Process n frames at once for better parallelism.
-        #     num_workers=1,  # Only for image sequence input. Reader threads.
-        #     progress=True  # Print conversion progress.
-        # )
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-dir', type=str, required=True)

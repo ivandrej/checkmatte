@@ -19,12 +19,12 @@ from model.fast_guided_filter import FastGuidedFilterRefiner
 from model.lraspp import LRASPP
 from model.mobilenetv3 import MobileNetV3LargeEncoder
 from model.resnet import ResNet50Encoder
-from train_attention import AttentionAdditionTrainer
+from train_attention import AttentionTrainer
 from train_config import BGR_FRAME_DATA_PATHS
 from train_loss import pha_loss
 
 
-class DebugNanGradsTrainer(AttentionAdditionTrainer):
+class DebugNanGradsTrainer(AttentionTrainer):
     def init_network(self):
         self.model = MattingNetwork(self.args.model_variant,
                                     pretrained_backbone=True,

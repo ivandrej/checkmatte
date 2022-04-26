@@ -107,6 +107,10 @@ class MattingNetwork(nn.Module):
                               mode='bilinear', align_corners=False, recompute_scale_factor=False)
         return x
 
+    """
+        Used to keep track of the magnitude of gradients during training. 
+        Helps us capture exploding/vanishing gradients.
+    """
     def bgr_backbone_grads(self):
         return self.backbone_bgr.features[6].block[0][0].weight.grad
 
