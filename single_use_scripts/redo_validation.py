@@ -2,7 +2,7 @@ import os
 import sys
 
 sys.path.append('..')
-from train_attention import AttentionAdditionTrainer
+from train_attention import AttentionTrainer
 
 import torch
 from torch import multiprocessing as mp
@@ -13,7 +13,7 @@ from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrData
 from train_config import BGR_FRAME_DATA_PATHS
 
 
-class ValidationOnlyTrainer(AttentionAdditionTrainer):
+class ValidationOnlyTrainer(AttentionTrainer):
     def __init__(self, rank, world_size):
         self.parse_args()
         self.init_distributed(rank, world_size)

@@ -4,7 +4,7 @@ import sys
 import torch
 
 sys.path.append("..")
-from model import model_attention_addition, model_attention_concat, model_attention_f3, model_attention_f4
+from model import model_attention_after_aspp, model_attention_concat, model_attention_f3, model_attention_f4
 
 from evaluation.inference_for_evaluation import convert_video, FixedOffsetMatcher
 import argparse
@@ -33,7 +33,7 @@ def get_model(model_type):
                                                    pretrained_backbone=False,
                                                    pretrained_on_rvm=False)
     elif model_type == 'addition':
-        model = model_attention_addition.MattingNetwork("mobilenetv3",
+        model = model_attention_after_aspp.MattingNetwork("mobilenetv3",
                                                              pretrained_backbone=False,
                                                              pretrained_on_rvm=False)
     elif model_type == 'concat':
