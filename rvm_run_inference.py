@@ -1,3 +1,10 @@
+"""
+    Run inference on the original RVM model
+    python rvm_run_inference.py \
+    --input-source /media/andivanov/DATA/dynamic_backgrounds_captured/asfandyar/whitecoat/left  \
+    --out-dir /media/andivanov/DATA/results/asfandyar/whitecoat/left/1920x1080_downsampleratio0.25  \
+    --downsample_ratio 0.25
+"""
 import os
 import torch
 import argparse
@@ -16,7 +23,7 @@ args = parser.parse_args()
 if not os.path.exists(args.out_dir):
     os.makedirs(args.out_dir)
 
-model = model.MattingNetwork("mobilenetv3").eval().cuda()
+model = rvm.MattingNetwork("mobilenetv3").eval().cuda()
 model.load_state_dict(torch.load("/media/andivanov/DATA/training/rvm_mobilenetv3.pth"))
 out_dir = os.path.join(args.out_dir)
 

@@ -3,7 +3,7 @@
 
     Example usage:
     To run inference on the F3 resolution 227x128 model:
-    python single_video_inference.py --input-source /person_frames --bgr-source /bgr_frames --out-dir /result \
+    python run_inference.py --input-source /person_frames --bgr-source /bgr_frames --out-dir /result \
     --load-model checkpoint/stage1/epoch38.pth --resize 227 128 --model f3
 
 """

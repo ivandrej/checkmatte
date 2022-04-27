@@ -1,4 +1,6 @@
 """
+    Trains the model where we concatenate the background and the person features instead of performing the attention.
+    The model is described in model/model_concat_bgr
 """
 
 import argparse
@@ -21,8 +23,8 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset.augmentation import ValidFrameSampler, TrainFrameSampler
-from dataset.precaptured_bgr_augmentation import PrecapturedBgrAndPersonSameAugmentation
-from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrDataset, VideoMattePrecapturedBgrTrainAugmentation, \
+from dataset.videomatte_with_precaptured_bgr import VideoMattePrecapturedBgrDataset, \
+    VideoMattePrecapturedBgrTrainAugmentation, \
     VideoMattePrecapturedBgrValidAugmentation
 from evaluation.evaluation_metrics import MetricMAD
 from model.model_concat_bgr import MattingNetwork

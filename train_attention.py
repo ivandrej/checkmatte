@@ -5,7 +5,7 @@
         --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0
         --checkpoint-dir  checkpoint/stage1  --log-dir log/stage1  --epoch-start 0  --epoch-end 40
         --log-train-images-interval 1000  --checkpoint-save-interval 2000 --batch-size-per-gpu 4 --temporal_offset 10
-        --model-type f3 --disable-mixed-precision --num-workers 8
+        --model-type f3 --num-workers 8
 
         To train a resolution 512 x 288 F4 (reduced) model:
         python train_attention.py --model-variant mobilenetv3reduced --dataset videomatte --resolution-lr 288 \

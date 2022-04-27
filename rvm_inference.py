@@ -1,17 +1,3 @@
-"""
-python inference.py \
-    --variant mobilenetv3 \
-    --checkpoint "CHECKPOINT" \
-    --device cuda \
-    --input-source "input.mp4" \
-    --output-type video \
-    --output-composition "composition.mp4" \
-    --output-alpha "alpha.mp4" \
-    --output-foreground "foreground.mp4" \
-    --output-video-mbps 4 \
-    --seq-chunk 1
-"""
-
 import torch
 import os
 from torch.utils.data import DataLoader

@@ -1,5 +1,5 @@
 """
-
+    Same as run_inference.py, but it can perform inference on multiple epochs, e.g by passing --epochs 27 38
 """
 import os
 

@@ -7,6 +7,10 @@ itself gives examples of how to run training.
 ## Inference
 Examples for how to run inference in `single_video_inference.py`
 
+## Evaluation
+
+## Visualization
+
 ## Contents
 
 #### /model
