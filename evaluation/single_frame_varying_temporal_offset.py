@@ -11,7 +11,7 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import to_pil_image
 from tqdm.auto import tqdm
 
-from perform_experiment import get_model
+from inference import get_model
 
 
 def varying_temporaloffset_experiment(model,

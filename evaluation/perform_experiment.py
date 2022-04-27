@@ -4,8 +4,8 @@ import sys
 import torch
 
 sys.path.append("..")
-from model import model_attention_after_aspp, model_attention_concat, model_attention_f3, model_attention_f4
 
+from inference import get_model
 from evaluation.inference_for_evaluation import convert_video, FixedOffsetMatcher
 import argparse
 
@@ -27,25 +27,6 @@ File structure:
         - fgr.mp4
 """
 
-def get_model(model_type):
-    if model_type == 'f4':
-        model = model_attention_f4.MattingNetwork("mobilenetv3reduced",  # reduced encoder by default
-                                                   pretrained_backbone=False,
-                                                   pretrained_on_rvm=False)
-    elif model_type == 'addition':
-        model = model_attention_after_aspp.MattingNetwork("mobilenetv3",
-                                                             pretrained_backbone=False,
-                                                             pretrained_on_rvm=False)
-    elif model_type == 'concat':
-        model = model_attention_concat.MattingNetwork("mobilenetv3",
-                                                             pretrained_backbone=False,
-                                                             pretrained_on_rvm=False)
-    else:
-        model = model_attention_f3.MattingNetwork("mobilenetv3",
-                                                             pretrained_backbone=False,
-                                                             pretrained_on_rvm=False)
-
-    return model
 
 def inference(experiment_dir, model_type, load_model, input_dir, clips, input_resize,
               output_type="png_sequence", bgr_offset=0, bgr_rotation=(0, 0)):

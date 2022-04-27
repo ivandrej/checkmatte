@@ -10,7 +10,9 @@ from tqdm.auto import tqdm
 from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, ImagePairSequenceWriter
 
 
-# TODO: Move to separate class
+from model import model_attention_f4, model_attention_after_aspp, model_attention_concat, model_attention_f3
+
+
 class FixedOffsetMatcher:
     def __init__(self, offset):
         self.offset = offset
@@ -187,3 +189,24 @@ def auto_downsample_ratio(h, w):
     Automatically find a downsample ratio so that the largest side of the resolution be 512px.
     """
     return min(512 / max(h, w), 1)
+
+
+def get_model(model_type):
+    if model_type == 'f4':
+        model = model_attention_f4.MattingNetwork("mobilenetv3reduced",  # reduced encoder by default
+                                                   pretrained_backbone=False,
+                                                   pretrained_on_rvm=False)
+    elif model_type == 'addition':
+        model = model_attention_after_aspp.MattingNetwork("mobilenetv3",
+                                                             pretrained_backbone=False,
+                                                             pretrained_on_rvm=False)
+    elif model_type == 'concat':
+        model = model_attention_concat.MattingNetwork("mobilenetv3",
+                                                             pretrained_backbone=False,
+                                                             pretrained_on_rvm=False)
+    else:
+        model = model_attention_f3.MattingNetwork("mobilenetv3",
+                                                             pretrained_backbone=False,
+                                                             pretrained_on_rvm=False)
+
+    return model

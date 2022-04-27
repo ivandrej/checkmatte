@@ -1,70 +1,55 @@
 """
+    Reads a directory of person frames and a directory of bgr frames, and outputs alpha mattes in a directory for results
+
+    Example usage:
+    To run inference on the F3 resolution 227x128 model:
+    python single_video_inference.py --input-source /person_frames --bgr-source /bgr_frames --out-dir /result \
+    --load-model checkpoint/stage1/epoch38.pth --resize 227 128 --model f3
 
 """
+import argparse
 import os
 
 import torch
 
-from model import rvm, model_concat_bgr
+from inference import convert_video, FixedOffsetMatcher, get_model
 
-from inference import convert_video
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    # a directory of all frames for the person input video, labelled 0000, 0001, ...
+    parser.add_argument('--input-source', type=str, required=True)
+    # a directory of all frames for the background input video, labelled 0000, 0001, ...
+    parser.add_argument('--bgr-source', type=str, default=None)
+    # only relevant if --bgr-source is specified
+    parser.add_argument('--model-type', type=str, choices=['addition', 'concat', 'f3'], default='f3')
+    parser.add_argument('--out-dir', type=str, required=True)
+    parser.add_argument('--load-model', type=str, required=True)
+    parser.add_argument('--temporal-offset', type=int, default=0)
+    parser.add_argument('--output-type', type=str, default='png_sequence')
+    parser.add_argument('--resize', type=int, default=(512, 288), nargs=2)
+    args = parser.parse_args()
 
-import argparse
+    model = get_model(args.model_type).eval().cuda()
+    model.load_state_dict(torch.load(os.path.join(args.load_model)))
+    matcher = FixedOffsetMatcher(args.temporal_offset)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--input-source', type=str, required=True)
-parser.add_argument('--bgr-source', type=str, default=None)
-parser.add_argument('--out-dir', type=str, required=True)
-parser.add_argument('--load-model', type=str, required=True)
-parser.add_argument('--output-type', type=str, default='video', required=False)
-parser.add_argument('--resize', type=int, default=(512, 288), nargs=2)
-args = parser.parse_args()
+    os.makedirs(args.out_dir, exist_ok=True)
 
-if args.load_model == "RVM":
-    model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3").eval().cuda()
-else:
-    if args.bgr_source:
-        # TODO: Better naming of models
-        model = model_concat_bgr.MattingNetwork("mobilenetv3").eval().cuda()
-    else:
-        model = rvm.MattingNetwork("mobilenetv3").eval().cuda()
-    model.load_state_dict(torch.load(args.load_model))
-
-if not os.path.exists(args.out_dir):
-    os.makedirs(args.out_dir)
-
-if args.output_type == 'video':
+   # save as png seq
     convert_video(
         model,  # The loaded model, can be on any device (cpu or cuda).
         input_source=args.input_source,
-        bgr_source=args.bgr_source,
-        input_resize=args.resize,  # [Optional] Resize the input (also the output).
-        downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
-        output_type='video',  # Choose "video" or "png_sequence"
-        output_composition=f"{args.out_dir}/com.mp4",
-        # File path if video; directory path if png sequence.
-        output_alpha=f"{args.out_dir}/pha.mp4",  # [Optional] Output the raw alpha prediction.
-        output_foreground=f"{args.out_dir}/fgr.mp4",
-        # [Optional] Output the raw foreground prediction.
-        output_video_mbps=4,  # Output video mbps. Not needed for png sequence.
-        seq_chunk=12,  # Process n frames at once for better parallelism.
-        num_workers=1,  # Only for image sequence input. Reader threads.
-        progress=True  # Print conversion progress.
-    )
-else:  # save as png seq
-    convert_video(
-        model,  # The loaded model, can be on any device (cpu or cuda).
-        input_source=args.input_source,
+        matcher=matcher,
         bgr_source=args.bgr_source,
         input_resize=args.resize,  # [Optional] Resize the input (also the output).
         downsample_ratio=None,  # [Optional] If None, make downsampled max size be 512px.
         output_type="png_sequence",  # Choose "video" or "png_sequence"
-        output_composition=f"{args.out_dir}/com",
+        # output_composition=f"{out_dir}/com",
         output_alpha=f"{args.out_dir}/pha",  # [Optional] Output the raw alpha prediction.
-        output_foreground=f"{args.out_dir}/fgr",
+        bgr_src_pairs=f"{args.out_dir}/bgr_src",
+        # output_foreground=f"{out_dir}/fgr",
         # [Optional] Output the raw foreground prediction.
-        # TODO: Make this an argument
-        seq_chunk=1,  # Process n frames at once for better parallelism.
+        seq_chunk=12,  # Process n frames at once for better parallelism.
         progress=True  # Print conversion progress.
     )
 

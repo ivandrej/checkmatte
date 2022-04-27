@@ -5,11 +5,9 @@ import os
 
 import torch
 
-from inference import convert_video, FixedOffsetMatcher
+from inference import convert_video, FixedOffsetMatcher, get_model
 
 import argparse
-
-from evaluation.perform_experiment import get_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-source', type=str, required=True)
@@ -63,7 +61,6 @@ for epoch in args.epochs:
             # output_composition=f"{out_dir}/com",
             output_alpha=f"{out_dir}/pha",  # [Optional] Output the raw alpha prediction.
             bgr_src_pairs=f"{out_dir}/bgr_src",
-            output_attention=f"{out_dir}/attention",
             # output_foreground=f"{out_dir}/fgr",
             # [Optional] Output the raw foreground prediction.
             seq_chunk=12,  # Process n frames at once for better parallelism.
